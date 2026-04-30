@@ -51,9 +51,9 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 ### Camada 1 — Ingestão e Indexação do Corpus Jurídico
 - Coleta: Planalto.gov.br, LexML Brasil, APIs públicas
 - Processamento: parsing de XML/PDF, limpeza, normalização
-- Chunking semântico por artigo/parágrafo
+- Chunking hierárquico jurídico: Título > Capítulo > Artigo > Parágrafo > Inciso
 - Geração de embeddings com `multilingual-e5-large`
-- Indexação no ChromaDB
+- Indexação no PostgreSQL + pgvector
 
 ### Camada 2 — Conversação e Extração de Contexto
 - Gerenciamento de estado com LangChain memory
@@ -93,7 +93,7 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 ### IA e RAG
 - **LLM:** Claude 3.5 Sonnet via API (ou GPT-4o como alternativa)
 - **LangChain:** orquestração do pipeline RAG
-- **ChromaDB:** banco vetorial local
+- **PostgreSQL + pgvector:** banco vetorial persistente
 - **sentence-transformers:** embeddings (`intfloat/multilingual-e5-large`)
 - **rank-bm25:** busca lexical híbrida
 
@@ -124,9 +124,11 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 | Decisão | Escolha | Justificativa |
 |---------|---------|---------------|
 | LLM | Claude 3.5 Sonnet | Melhor raciocínio em PT-BR, bom custo/benefício |
-| Banco vetorial | ChromaDB | Open-source, roda local, sem infra extra |
+| Banco vetorial | PostgreSQL + pgvector | Persistência estruturada, LGPD-compliant, escalável |
+| Chunking jurídico | Hierárquico (Título > Artigo > Parágrafo) | Preserva contexto legal, melhora raciocínio jurídico |
 | Linguagem backend | Python | Ecossistema de IA maduro, LangChain nativo |
 | Arquitetura | Monolito modular | Complexidade adequada para TCC |
+| Segurança | LGPD como infraestrutura | Criptografia, mascaramento, auditoria desde o design |
 | Deploy | Local + Docker | Demonstração ao vivo sem dependência de cloud |
 
 ### O que NÃO vamos usar (decisões conscientes)
@@ -193,14 +195,13 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 |--------|--------------|------|----------|
 | 1 | Abr/mai | Revisão bibliográfica + papers | Lista de referências + fichamentos |
 | 2 | Mai | Setup do ambiente + estrutura do repo | Projeto rodando, stack instalada |
-| 3 | Mai | Pipeline de ingestão do corpus | CDC + CLT coletados e limpos |
-| 4 | Mai/jun | Chunking + embeddings + indexação | ChromaDB populado e consultável |
+| 3–4 | Mai/jun | Ingestão + Chunking hierárquico + Indexação PostgreSQL | CDC + CLT coletados, chunked, indexados e consultáveis |
 | 5 | Jun | Motor RAG v1 (retrieval básico) | Consultas simples respondendo |
 | 6 | Jun | Motor RAG v2 (híbrido + re-ranking) | Qualidade melhorada |
 | 7 | Jun | Gerenciamento conversacional | Fluxo de chat completo |
 | 8 | Jul | Geração dos 3 documentos | Templates + preenchimento |
 | 9 | Jul | Frontend integrado | Sistema end-to-end |
-| 10 | Jul | Testes + refinamento | Sistema estável |
+| 10 | Jul | Testes + refinamento + Validação LGPD | Sistema estável, compliant |
 | 11 | Jul | Avaliação empírica + SUS | Métricas coletadas |
 | 12 | Jul | Análise + escrita (caps 3, 4, 5) | TCC ~70% escrito |
 | 13 | Fim de Jul | Caps 1, 2, 6 + apresentação | Entrega final |
@@ -239,7 +240,15 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 **Disclaimer obrigatório na interface:** "Este sistema fornece informações jurídicas educativas. Para casos complexos, consulte um advogado ou a Defensoria Pública."
 
-**Conformidade com LGPD:** dados pessoais dos usuários são efêmeros (só durante a sessão), não armazenamos CPF nem dados sensíveis após geração do documento.
+**Conformidade com LGPD — Camada de Infraestrutura Real:**
+- **Dados pessoais:** armazenamento criptografado (AES-256), logs auditados
+- **Retenção:** dados de sessão deletados automaticamente após 24h; documentos gerados sem PII
+- **Direitos do titular:** endpoints para consulta, correção e exclusão de dados
+- **Consentimento:** aceite explícito pré-entrada no sistema
+- **Responsável:** documentação clara de quem é responsável (Universidade/Departamento)
+- **Segurança:** validação de entrada, sanitização SQL, rate limiting, HTTPS obrigatório
+- **Monitoramento:** logs centralizados de acesso a dados pessoais para auditoria
+- **Padrão:** conformidade verificada contra checklist LGPD em Semana 10
 
 **Não configura advocacia não autorizada:** o sistema informa direitos e gera rascunhos de documentos — o usuário é quem protocola, assina e decide.
 
@@ -310,8 +319,7 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 │   └── package.json
 ├── /data
 │   ├── /corpus_raw              ← legislação crua baixada
-│   ├── /corpus_processed        ← após chunking
-│   └── /chromadb                ← banco vetorial (gitignored)
+│   └── /corpus_processed        ← após chunking hierárquico
 ├── /templates                   ← templates Jinja2 dos documentos
 ├── /evaluation
 │   ├── /dataset                 ← 50 casos de teste
@@ -360,10 +368,10 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ## 📌 STATUS ATUAL DO PROJETO
 
-**Última atualização:** Abril 2026
-**Fase atual:** Planejamento concluído, pronto para iniciar Semana 1
+**Última atualização:** 30 de abril de 2026
+**Fase atual:** Planejamento validado pelo orientador, pronto para iniciar Semana 1
 **Próxima ação:** Configurar ambiente de desenvolvimento e iniciar revisão bibliográfica
-**Orientador:** _[a ser preenchido]_
+**Orientador:** Prof. Tarsício Lemos
 **Riscos ativos:** _[a ser preenchido conforme surgirem]_
 
 ---
@@ -389,6 +397,30 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
 - **Decisão:** Claude 3.5 Sonnet via API Anthropic
 - **Justificativa:** Melhor desempenho em PT-BR para raciocínio complexo, custo aceitável para TCC
 - **Consequência:** Dependência de API paga; alternativa (LLaMA 3 local) documentada como fallback
+
+### [ADR-004] — 30 de abril/2026 — Migração ChromaDB → PostgreSQL + pgvector
+- **Contexto:** Necessidade de persistência estruturada, conformidade LGPD e escalabilidade
+- **Decisão Anterior:** ChromaDB (local, open-source)
+- **Decisão Nova:** PostgreSQL com extensão pgvector
+- **Justificativa:** (Orientação do Prof. Tarsício Lemos)
+  - Integração com dados estruturados (usuários, sessões, documentos)
+  - LGPD built-in: criptografia, auditoria, direitos de acesso
+  - Escalabilidade sem replicação manual
+  - Backup e recovery simplificados
+  - Melhor para dissertação: "banco de dados" vs "cache vetorial"
+- **Consequência:** +1 serviço (PostgreSQL), migração do design de ingestão, mas ganhamos defesa acadêmica e conformidade legal clara
+
+### [ADR-005] — 30 de abril/2026 — Chunking hierárquico jurídico
+- **Contexto:** Qualidade de RAG em corpus jurídico
+- **Decisão:** Estratégia de chunking em 5 níveis hierárquicos
+- **Estrutura:** Título > Capítulo > Artigo > Parágrafo > Inciso
+- **Justificativa:** (Orientação do Prof. Tarsício Lemos)
+  - Lei brasileira é estruturada hierarquicamente por artigo, parágrafo, inciso — desrespeitar isto piora raciocínio
+  - Permite raciocínio multi-escala (citar apenas o artigo, ou o inciso completo)
+  - Evita "cortar no meio" de conceitos legais
+  - Facilita validação: cada chunk é uma unidade legal válida
+  - Melhora recall em queries jurídicas complexas
+- **Consequência:** Parser inicial mais complexo, mas dataset de chunks mais coerente
 
 ---
 

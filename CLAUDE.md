@@ -368,11 +368,28 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ## 📌 STATUS ATUAL DO PROJETO
 
-**Última atualização:** 30 de abril de 2026
-**Fase atual:** Planejamento validado pelo orientador, pronto para iniciar Semana 1
-**Próxima ação:** Configurar ambiente de desenvolvimento e iniciar revisão bibliográfica
+**Última atualização:** 8 de maio de 2026
+**Fase atual:** Semana 2 Bloco 2 — Ambiente de desenvolvimento pronto (Docker + PostgreSQL + pgvector)
+**Próxima ação:** Modelagem SQLAlchemy (Semana 2 Bloco 3) e ingestão do corpus jurídico
 **Orientador:** Prof. Tarsício Lemos
 **Riscos ativos:** _[a ser preenchido conforme surgirem]_
+
+### Setup de Desenvolvimento
+
+Para subir o ambiente local:
+```bash
+# 1. Copiar variáveis de ambiente
+cp .env.example .env
+
+# 2. Subir PostgreSQL + pgvector via Docker
+docker-compose up -d
+
+# 3. Verificar status
+docker-compose ps    # deve estar "healthy"
+docker exec jusbot-postgres psql -U jusbot -d jusbot_dev -c "SELECT extname FROM pg_extension;"
+```
+
+Ver `docs/database.md` para instruções completas de conexão, troubleshooting e reset.
 
 ---
 
@@ -421,6 +438,17 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
   - Facilita validação: cada chunk é uma unidade legal válida
   - Melhora recall em queries jurídicas complexas
 - **Consequência:** Parser inicial mais complexo, mas dataset de chunks mais coerente
+
+### [ADR-006] — 8 de maio/2026 — Orquestração com Docker Compose
+- **Contexto:** Ambiente de desenvolvimento reprodutível e conformidade com LGPD
+- **Decisão:** Docker Compose para PostgreSQL + pgvector local
+- **Justificativa:**
+  - Reprodutibilidade: mesma stack em dev, teste e demonstração
+  - Zero configuração manual de PostgreSQL (tudo em YAML)
+  - Volume persistente para dados jurídicos sem perder entre restarts
+  - Saúde monitorada via healthcheck
+  - Facilita documentação de setup para banca
+- **Consequência:** Dependência de Docker (instalado em 99% dos ambientes modernos), simplificação de onboarding
 
 ---
 

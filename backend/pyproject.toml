@@ -1,16 +1,71 @@
+[tool.poetry]
+name = "jusbot-backend"
+version = "0.1.0"
+description = "Backend do JusBot - Sistema de Acesso à Justiça com IA."
+authors = ["Jhonatan <jhonatanmatos070@gmail.com>"]
+license = "MIT"
+package-mode = false
+
 [project]
 name = "jusbot-backend"
 version = "0.1.0"
 description = "Backend do JusBot - Sistema de Acesso à Justiça com IA."
 authors = [
-    {name = "Jhonatan",email = "jhonatanmatos070@gmail.com"}
+    {name = "Jhonatan", email = "jhonatanmatos070@gmail.com"}
 ]
 license = "MIT"
-requires-python = "^3.11"
+requires-python = ">=3.11,<4.0.0"
 dependencies = [
+    "langchain>=0.1.0",
+    "langchain-anthropic>=0.1.0",
+    "anthropic>=0.21.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.12.0",
+    "psycopg[binary]>=3.1.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "sentence-transformers>=2.2.0",
+    "python-dotenv>=1.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.10.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.4.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "W", "I", "N", "UP", "B", "C90", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+strict_optional = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pre-commit (>=4.6.0,<5.0.0)"
+]

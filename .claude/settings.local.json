@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git commit *)",
+      "Bash(poetry install *)",
+      "Bash(poetry show *)",
+      "Bash(poetry run *)",
+      "Bash(poetry add *)"
+    ]
+  }
+}

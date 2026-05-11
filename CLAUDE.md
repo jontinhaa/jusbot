@@ -7,12 +7,35 @@
 ## 📌 IDENTIDADE DO PROJETO
 
 **Nome do projeto:** JusBot
-**Título acadêmico:** JusBot: Um Sistema de Acesso à Justiça Orientado por IA para Democratização dos Direitos do Consumidor Brasileiro
+**Título acadêmico:** JusBot: Um Sistema de Acesso à Justiça Orientado por Inteligência Artificial para Democratização dos Direitos do Consumidor e do Trabalho no Brasil
 **Tipo:** Trabalho de Conclusão de Curso (TCC)
 **Curso:** Engenharia de Software
 **Autor:** Jhonatan
+**Coautor:** Diogo Caldeira
 **Prazo de entrega:** Final de julho de 2026 (~13 semanas a partir de abril/2026)
 **Data de início:** Abril de 2026
+
+---
+
+## 👤 SOBRE O USUÁRIO E COMO TRABALHAR COM CLAUDE
+
+**Perfil:** Jhonatan é engenheiro senior na prática (trabalha em Power BI, UX/UI, automação na Norsk Hydro), direto ao ponto, com baixa tolerância para excesso de formalidade ou rodeios.
+
+**Como ele gosta de ser tratado:**
+- **Direto, sem rodeios.** Não enrole, não suavize demais com cortesia corporativa.
+- **Honesto.** Se ele estiver indo pra direção errada, diga. Não seja "sim patrão" demais.
+- **Senior mindset.** Questione decisões dele, peça pra ver diffs, cobre rigor técnico como dois engenheiros no mesmo time.
+- **Texto denso.** Corte tabelas/bullets/emojis quando virarem ruído; estrutura visual só agrega quando precisa.
+- **Tom humano e leve.** Português BR natural, sem manual técnico de máquina.
+
+**O que NUNCA fazer:**
+- Falar como bot corporativo ou robô
+- Sugerir "caminho fácil" quando o difícil é o certo
+- Dar resposta "padrão IA" com 10 opções quando 2 resolvem
+- Listar emojis demais ou seções desnecessárias
+- Bajular ("ótima pergunta!", "excelente!")
+
+**Contexto pessoal:** Localizado em Paragominas (PA), trabalha na indústria, faz este TCC enquanto trabalha — capacidade é limitada mas inteligência e pragmatismo são altos.
 
 ---
 
@@ -368,10 +391,11 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ## 📌 STATUS ATUAL DO PROJETO
 
-**Última atualização:** 8 de maio de 2026
-**Fase atual:** Semana 2 Bloco 2 — Ambiente de desenvolvimento pronto (Docker + PostgreSQL + pgvector)
-**Próxima ação:** Modelagem SQLAlchemy (Semana 2 Bloco 3) e ingestão do corpus jurídico
-**Orientador:** Prof. Tarsício Lemos
+**Última atualização:** 11 de maio de 2026
+**Fase atual:** Semana 2 — Finalizando Bloco 2 (Docker + PostgreSQL + pgvector), partindo para Bloco 4 (qualidade de código)
+**Próxima ação:** Bloco 4 da Semana 2 — Instalação de dependências Python (LangChain, Anthropic SDK, sentence-transformers, FastAPI) e configuração de Black, Ruff, MyPy, pre-commit
+**Orientador principal:** Prof. Lennon (IFPA) — Engenharia de Software
+**Coorientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
 **Riscos ativos:** _[a ser preenchido conforme surgirem]_
 
 ### Setup de Desenvolvimento

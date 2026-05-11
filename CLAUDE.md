@@ -443,7 +443,7 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
 - **Contexto:** Necessidade de persistência estruturada, conformidade LGPD e escalabilidade
 - **Decisão Anterior:** ChromaDB (local, open-source)
 - **Decisão Nova:** PostgreSQL com extensão pgvector
-- **Justificativa:** (Orientação do Prof. Tarsício Lemos)
+- **Justificativa:** (Orientação do Prof. Tarcísio Lemos)
   - Integração com dados estruturados (usuários, sessões, documentos)
   - LGPD built-in: criptografia, auditoria, direitos de acesso
   - Escalabilidade sem replicação manual
@@ -455,7 +455,7 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
 - **Contexto:** Qualidade de RAG em corpus jurídico
 - **Decisão:** Estratégia de chunking em 5 níveis hierárquicos
 - **Estrutura:** Título > Capítulo > Artigo > Parágrafo > Inciso
-- **Justificativa:** (Orientação do Prof. Tarsício Lemos)
+- **Justificativa:** (Orientação do Prof. Tarcísio Lemos)
   - Lei brasileira é estruturada hierarquicamente por artigo, parágrafo, inciso — desrespeitar isto piora raciocínio
   - Permite raciocínio multi-escala (citar apenas o artigo, ou o inciso completo)
   - Evita "cortar no meio" de conceitos legais
@@ -463,16 +463,16 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
   - Melhora recall em queries jurídicas complexas
 - **Consequência:** Parser inicial mais complexo, mas dataset de chunks mais coerente
 
-### [ADR-006] — 8 de maio/2026 — Orquestração com Docker Compose
-- **Contexto:** Ambiente de desenvolvimento reprodutível e conformidade com LGPD
-- **Decisão:** Docker Compose para PostgreSQL + pgvector local
+### [ADR-006] — 8 de maio de 2026 — Orquestração com Docker Compose
+- **Contexto:** Necessidade de ambiente de desenvolvimento reprodutível e portável para o projeto, com PostgreSQL + pgvector configurado de forma consistente entre máquinas dos colaboradores e demonstrações para banca.
+- **Decisão:** Adotar Docker Compose para orquestrar o PostgreSQL com pgvector localmente.
 - **Justificativa:**
-  - Reprodutibilidade: mesma stack em dev, teste e demonstração
-  - Zero configuração manual de PostgreSQL (tudo em YAML)
-  - Volume persistente para dados jurídicos sem perder entre restarts
-  - Saúde monitorada via healthcheck
-  - Facilita documentação de setup para banca
-- **Consequência:** Dependência de Docker (instalado em 99% dos ambientes modernos), simplificação de onboarding
+  - Reprodutibilidade: mesma stack em qualquer máquina sem instalação manual
+  - Isolamento: o banco roda em container, sem afetar outras instalações de PostgreSQL na máquina
+  - Onboarding rápido: novo colaborador sobe o ambiente com um único comando
+  - Persistência: volume nomeado garante que os dados sobrevivem entre restarts
+  - Healthcheck integrado para validação automática do estado do container
+- **Consequência:** Requer Docker como pré-requisito de desenvolvimento. Tecnologia padrão da indústria, com documentação extensa e curva de aprendizado baixa.
 
 ---
 

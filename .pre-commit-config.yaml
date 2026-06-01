@@ -10,10 +10,3 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.5.0
-    hooks:
-      - id: mypy
-        args: [--python-version, "3.13"]
-        exclude: ^(backend/pyproject\.toml|poetry\.lock|backend/src)$

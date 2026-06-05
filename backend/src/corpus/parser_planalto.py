@@ -427,7 +427,14 @@ def ingest(
     Retorna (document_id, n_chunks, n_descartados).
     """
     # Importação local para não criar dependência circular em testes unitários do parser
+    from sqlalchemy import null as _sql_null
+
     from src.db.models import Chunk, Document
+
+    # psycopg3 converte Python None → JSON null para colunas JSONB (não SQL NULL).
+    # _j() força SQL NULL quando o valor é None.
+    def _j(v: dict | None) -> dict | object:
+        return v if v is not None else _sql_null()
 
     raw = html_path.read_bytes()
     sha256 = hashlib.sha256(raw).hexdigest()
@@ -445,7 +452,7 @@ def ingest(
         data_assinatura=doc_kwargs.get("data_assinatura"),
         fonte_url=doc_kwargs["fonte_url"],
         hash_html_bruto=sha256,
-        metadata_={"dispositivos_descartados": descartados} if descartados else None,
+        metadata_=_j({"dispositivos_descartados": descartados} if descartados else None),
     )
     session.add(doc)
     session.flush()  # obtém doc.id antes de inserir os chunks
@@ -462,9 +469,9 @@ def ingest(
             numero=draft.numero,
             texto=draft.texto,
             posicao_ordem=draft.posicao_ordem,
-            caminho_hierarquico=draft.caminho_hierarquico,
-            alterado_por=draft.alterado_por,
-            metadata_=draft.metadata_,
+            caminho_hierarquico=_j(draft.caminho_hierarquico),
+            alterado_por=_j(draft.alterado_por),
+            metadata_=_j(draft.metadata_),
         )
         session.add(chunk)
         session.flush()  # obtém chunk.id antes do próximo filho

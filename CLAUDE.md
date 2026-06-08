@@ -418,9 +418,9 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ## 📌 STATUS ATUAL DO PROJETO
 
-**Última atualização:** 01 de junho de 2026
-**Fase atual:** Semana 3 — Bloco 2 concluído (modelagem do schema). Croqui do banco v2 aprovado pelo Prof. Tarcísio após revisão técnica; decisões registradas em ADR-007 a ADR-010. Substitui o croqui v1.
-**Próxima ação:** Semana 3, Bloco 3 — escrever as migrations do Alembic a partir do croqui v2; em seguida, o parser HTML que popula `documents` e `chunks`.
+**Última atualização:** 08 de junho de 2026
+**Fase atual:** Semana 3 — Bloco 3 (parser HTML) concluído. Corpus completo ingerido com 3.767 chunks distribuídos em 5 documentos, integridade PASS. Estado-base em `docs/corpus_snapshot_bloco3.md`.
+**Próxima ação:** Semana 4 — geração de embeddings (multilingual-e5-large) e indexação vetorial.
 **Orientador principal:** Prof. Lennon (IFPA) — Engenharia de Software
 **Coorientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
 **Riscos ativos:** _[a ser preenchido conforme surgirem]_

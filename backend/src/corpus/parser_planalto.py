@@ -38,9 +38,10 @@ load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 _TRACOS = r"[-\u2013\u2014]"
 
 # Artigo: "Art. 1° -" (4.090), "Art. 18. texto" (CDC com ponto), "Art. 15. (Vetado)"
+# "Art . 597." (CLT — FrontPage insere espaço antes do ponto em alguns artigos revogados)
 # Ponto apos ordinal captura articulacao do CDC; traco opcional mantem formato da 4.090
 _ART = re.compile(
-    r"^Art\.?\s*(\d[a-zA-Z\d-]*)\s*[°º]?\s*\.?\s*" + _TRACOS + r"?\s*(.*)",
+    r"^Art\s*\.?\s*(\d[a-zA-Z\d-]*)\s*[°º]?\s*\.?\s*" + _TRACOS + r"?\s*(.*)",
     re.DOTALL | re.IGNORECASE,
 )
 
@@ -62,6 +63,45 @@ _LEI_NUM = re.compile(r"n[°º.]?\s*([\d.]+)[,\s]+de\s+(\d{4})", re.IGNORECASE)
 # Caput que inicia com marcador de veto/revogação — chunk deve ser descartado.
 # Usa prefixo (\b) em vez de âncora final: captura "(Revogado).", "(Revogado). (Vigência)", etc.
 _MARCADOR = re.compile(r"^\((?:Vetado|Revogad[oa])\b", re.IGNORECASE)
+
+# Mínimo de chars alfanuméricos antes do primeiro ";" no corpo de uma alínea.
+# Abaixo disto: artefato HTML (separador de dispositivo que vazou para o <p> da alínea).
+_MIN_ALI_CORPO = 5
+
+
+def _classify_tipo(text: str) -> tuple[str, str]:
+    """Retorna (tipo, numero) usando os mesmos detectores do pipeline de vigentes.
+
+    Fonte única de verdade para classificar o tipo de um dispositivo — usada tanto
+    no pipeline de chunks vigentes quanto no registro de descartados, garantindo
+    que alíneas revogadas não caiam como 'desconhecido'.
+    """
+    m = _ART.match(text)
+    if m:
+        return "artigo", m.group(1)
+    if _PAR_UNICO.match(text):
+        return "paragrafo", "único"
+    m = _PAR.match(text)
+    if m:
+        return "paragrafo", m.group(1)
+    m = _INC.match(text)
+    if m:
+        return "inciso", m.group(1)
+    m = _ALI.match(text)
+    if m:
+        return "alinea", m.group(1)
+    return "desconhecido", "-"
+
+
+def _ali_corpo_util(body: str) -> bool:
+    """True se o corpo da alínea tem >= _MIN_ALI_CORPO chars alfanum antes do primeiro ';'.
+
+    Alíneas cujo texto começa com ';' são artefatos de formatação HTML do Planalto:
+    o ponto-e-vírgula separador do inciso pai vazou para o <p> da alínea filho.
+    Esses elementos não representam dispositivos legais e não devem ir nem para metadata.
+    """
+    pre_semi = re.split(r";", body.lstrip())[0]
+    return sum(1 for c in pre_semi if c.isalpha() or c.isdigit()) >= _MIN_ALI_CORPO
 
 
 def _dispositivo_from_href(href: str) -> str | None:
@@ -293,20 +333,18 @@ def _extract_dispositivos(  # noqa: C901
         # Revogado/Vetado detectado via <a> ou <font> em _process_p
         if is_revogado:
             motivo = "vetado" if re.search(r"vetado", text, re.IGNORECASE) else "revogado"
-            ma = _ART.match(text)
-            mpu = _PAR_UNICO.match(text)
-            mp = _PAR.match(text)
-            mi = _INC.match(text)
-            if ma:
-                descartados.append({"tipo": "artigo", "numero": ma.group(1), "motivo": motivo})
-                s.enter_art(ma.group(1))  # avança estado para descartar filhos também
+            tipo, numero = _classify_tipo(text)
+            if tipo == "artigo":
+                descartados.append({"tipo": tipo, "numero": numero, "motivo": motivo})
+                s.enter_art(numero)
                 s.art_key = None  # invalida: filhos sem artigo → descartados
-            elif mpu:
-                descartados.append({"tipo": "paragrafo", "numero": "único", "motivo": motivo})
-            elif mp:
-                descartados.append({"tipo": "paragrafo", "numero": mp.group(1), "motivo": motivo})
-            elif mi:
-                descartados.append({"tipo": "inciso", "numero": mi.group(1), "motivo": motivo})
+            elif tipo == "alinea":
+                ma = _ALI.match(text)
+                if ma and _ali_corpo_util(ma.group(2)):
+                    descartados.append({"tipo": tipo, "numero": numero, "motivo": motivo})
+                # corpo vazio/separador HTML — silenciosamente ignorado (fora do metadata tb)
+            elif tipo != "desconhecido":
+                descartados.append({"tipo": tipo, "numero": numero, "motivo": motivo})
             else:
                 descartados.append({"tipo": "desconhecido", "numero": "-", "motivo": motivo})
             continue

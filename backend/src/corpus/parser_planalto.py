@@ -59,8 +59,9 @@ _ALI = re.compile(r"^([a-z])\)\s*(.*)", re.DOTALL)
 # Extrai número e ano de anotações: "Lei nº 9.011, de 1995" → ("9.011", "1995")
 _LEI_NUM = re.compile(r"n[°º.]?\s*([\d.]+)[,\s]+de\s+(\d{4})", re.IGNORECASE)
 
-# Caput que é apenas marcador de veto/revogação — chunk deve ser descartado
-_MARCADOR = re.compile(r"^\((?:Vetado|Revogad[oa])[^)]*\)$", re.IGNORECASE)
+# Caput que inicia com marcador de veto/revogação — chunk deve ser descartado.
+# Usa prefixo (\b) em vez de âncora final: captura "(Revogado).", "(Revogado). (Vigência)", etc.
+_MARCADOR = re.compile(r"^\((?:Vetado|Revogad[oa])\b", re.IGNORECASE)
 
 
 def _dispositivo_from_href(href: str) -> str | None:
@@ -93,6 +94,63 @@ class _ChunkDraft:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _process_annotation_a(a: Any, p: Tag) -> tuple[dict[str, Any] | None, bool]:
+    """Processa um único <a> de anotação parentética dentro de p.
+
+    Retorna (alterado_por | None, is_revogado).
+    O HTML do FrontPage aninha <p> dentro de <p> (inválido mas preservado pelo BS4).
+    find_all("a") traversa todos os descendentes — só processa <a> cujo ancestral
+    <p> mais próximo é o próprio p, para evitar capturar links de artigos aninhados.
+    """
+    if a.find_parent("p") is not p:
+        return None, False
+
+    link_text = a.get_text(strip=True)
+    if not link_text.startswith("("):
+        return None, False  # âncora de navegação <a name="...">
+
+    href = a.get("href", "")
+
+    if re.search(r"Revogad[oa]|Vetado", link_text, re.IGNORECASE):
+        a.decompose()
+        return None, True
+
+    if re.search(r"Incluíd[oa]", link_text, re.IGNORECASE):
+        m = _LEI_NUM.search(link_text)
+        alt = (
+            {
+                "tipo": "inclusao",
+                "lei": f"{m.group(1)}/{m.group(2)}",
+                "url": href,
+                "dispositivo_alterado": _dispositivo_from_href(href),
+                "data_publicacao": None,
+            }
+            if m
+            else None
+        )
+        a.decompose()
+        return alt, False
+
+    if re.search(r"Redação dada", link_text, re.IGNORECASE):
+        m = _LEI_NUM.search(link_text)
+        alt = (
+            {
+                "tipo": "redacao",
+                "lei": f"{m.group(1)}/{m.group(2)}",
+                "url": href,
+                "dispositivo_alterado": _dispositivo_from_href(href),
+                "data_publicacao": None,
+            }
+            if m
+            else None
+        )
+        a.decompose()
+        return alt, False
+
+    a.unwrap()  # outras anotações parentéticas: remove link, mantém texto
+    return None, False
+
+
 def _process_p(p: Tag) -> tuple[str, dict[str, Any] | None, bool]:
     """
     Retorna (texto_limpo, alterado_por | None, is_revogado).
@@ -102,44 +160,11 @@ def _process_p(p: Tag) -> tuple[str, dict[str, Any] | None, bool]:
     is_revogado = False
 
     for a in p.find_all("a"):
-        link_text = a.get_text(strip=True)
-        if not link_text.startswith("("):
-            # Âncora de navegação <a name="..."> — sem texto, sem ação
-            continue
-
-        href = a.get("href", "")
-
-        if re.search(r"Revogad[oa]|Vetado", link_text, re.IGNORECASE):
+        alt, rev = _process_annotation_a(a, p)
+        if rev:
             is_revogado = True
-            a.decompose()
-
-        elif re.search(r"Incluíd[oa]", link_text, re.IGNORECASE):
-            m = _LEI_NUM.search(link_text)
-            if m:
-                alterado_por = {
-                    "tipo": "inclusao",
-                    "lei": f"{m.group(1)}/{m.group(2)}",
-                    "url": href,
-                    "dispositivo_alterado": _dispositivo_from_href(href),
-                    "data_publicacao": None,
-                }
-            a.decompose()
-
-        elif re.search(r"Redação dada", link_text, re.IGNORECASE):
-            m = _LEI_NUM.search(link_text)
-            if m:
-                alterado_por = {
-                    "tipo": "redacao",
-                    "lei": f"{m.group(1)}/{m.group(2)}",
-                    "url": href,
-                    "dispositivo_alterado": _dispositivo_from_href(href),
-                    "data_publicacao": None,
-                }
-            a.decompose()
-
-        else:
-            # Outras anotações parentéticas: remove o link mas mantém o texto
-            a.unwrap()
+        if alt:
+            alterado_por = alt
 
     # Detecta (Vetado)/(Revogado) em <font> — padrão do CDC (não usa <a>)
     # Exige parênteses para não casar com "revogadas as disposições em contrário"
@@ -160,7 +185,12 @@ def _process_p(p: Tag) -> tuple[str, dict[str, Any] | None, bool]:
 
 
 def _extract_titulo(soup: BeautifulSoup) -> str:
-    """Título oficial: primeiro <strong> dentro de <p align='center'> com 'LEI' ou 'DECRETO'."""
+    """Título oficial: primeiro <strong> (possivelmente dentro de <a>) com 'LEI' ou 'DECRETO'.
+
+    Estratégia primária: <p align='center'> > <strong> (CDC, Lei 4.090).
+    Fallback: qualquer <strong> no documento (CLT — título fica em <a><font><strong>
+    fora do <p> por causa de um </font> órfão que confunde o parser HTML).
+    """
     for p in soup.find_all("p"):
         if p.get("align", "").lower() == "center":
             strong = p.find("strong")
@@ -168,6 +198,11 @@ def _extract_titulo(soup: BeautifulSoup) -> str:
                 t = re.sub(r"\s+", " ", strong.get_text(strip=True))
                 if t.upper().startswith(("LEI", "DECRETO")):
                     return t
+    # Fallback: qualquer <strong> com conteúdo iniciando em LEI/DECRETO
+    for strong in soup.find_all("strong"):
+        t = re.sub(r"\s+", " ", strong.get_text(strip=True))
+        if t.upper().startswith(("LEI", "DECRETO")):
+            return t
     return ""
 
 
@@ -498,6 +533,30 @@ _CORPUS_MAP: dict[str, tuple[str, dict[str, Any]]] = {
             "fonte_url": "https://www.planalto.gov.br/ccivil_03/leis/l4090.htm",
         },
     ),
+    "lei-4749-1965": (
+        "data/raw/decimo_terceiro/lei_4749_planalto.html",
+        {
+            "codigo": "lei-4749-1965",
+            "tipo_norma": "lei",
+            "numero": "4.749",
+            "ano": 1965,
+            "area_juridica": "trabalho",
+            "data_assinatura": date(1965, 8, 12),
+            "fonte_url": "https://www.planalto.gov.br/ccivil_03/leis/l4749.htm",
+        },
+    ),
+    "lei-8036-1990": (
+        "data/raw/fgts/lei_8036_planalto.html",
+        {
+            "codigo": "lei-8036-1990",
+            "tipo_norma": "lei",
+            "numero": "8.036",
+            "ano": 1990,
+            "area_juridica": "trabalho",
+            "data_assinatura": date(1990, 5, 11),
+            "fonte_url": "https://www.planalto.gov.br/ccivil_03/leis/l8036consol.htm",
+        },
+    ),
     "lei-8078-1990": (
         "data/raw/cdc/cdc_planalto.html",
         {
@@ -508,6 +567,18 @@ _CORPUS_MAP: dict[str, tuple[str, dict[str, Any]]] = {
             "area_juridica": "consumidor",
             "data_assinatura": date(1990, 9, 11),
             "fonte_url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
+        },
+    ),
+    "decreto-lei-5452-1943": (
+        "data/raw/clt/clt_planalto.html",
+        {
+            "codigo": "decreto-lei-5452-1943",
+            "tipo_norma": "decreto-lei",
+            "numero": "5.452",
+            "ano": 1943,
+            "area_juridica": "trabalho",
+            "data_assinatura": date(1943, 5, 1),
+            "fonte_url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm",
         },
     ),
 }

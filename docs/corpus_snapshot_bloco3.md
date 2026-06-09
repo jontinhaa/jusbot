@@ -1,6 +1,6 @@
 # Corpus Snapshot — Fim do Bloco 3 (Semana 3)
 
-**Data:** 2026-06-08  
+**Data:** 2026-06-09  
 **Commit de referência:** branch `main`, após `670ee0d`  
 **Estado:** ingestão completa, integridade **PASS**
 
@@ -98,7 +98,7 @@ Notas do parser:
 | parágrafo | 3 | 2 | 1 | 0 |
 | **total** | — | **10** | **1** | — |
 
-Notas: parágrafo único vetado no Art. 5°. Estrutura plana sem incisos nem alíneas.
+Notas: parágrafo único vetado no Art. 1° (`Parágrafo único. (Vetado).`). Estrutura plana sem incisos nem alíneas.
 
 ---
 

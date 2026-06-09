@@ -419,8 +419,8 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 ## 📌 STATUS ATUAL DO PROJETO
 
 **Última atualização:** 09 de junho de 2026
-**Fase atual:** Semana 3 — Bloco 3 (parser HTML) concluído. Corpus completo ingerido com 3.767 chunks distribuídos em 5 documentos, integridade PASS. Estado-base em `docs/corpus_snapshot_bloco3.md`.
-**Próxima ação:** Semana 4 — geração de embeddings (multilingual-e5-large) e indexação vetorial.
+**Fase atual:** Semana 4 concluída — 3.767 chunks embeddados (multilingual-e5-large, local), índice HNSW populado, busca semântica validada (retrieval relevante para query de teste).
+**Próxima ação:** Semana 5 — motor de retrieval (busca híbrida pgvector + pg_trgm) e montagem de contexto pro LLM.
 **Orientador principal:** Prof. Lennon (IFPA) — Engenharia de Software
 **Coorientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
 **Riscos ativos:** _[a ser preenchido conforme surgirem]_
@@ -550,6 +550,27 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
   - CHECK simultaneamente completo (não rejeita estrutura legítima) e justo (rejeita typos)
   - Argumento metodológico forte para a banca — citar a LC 95/1998 na metodologia
 - **Consequência:** Estrutura fora da LC 95 (redações antigas atípicas) força o parser a normalizar antes do INSERT — comportamento desejado (sinaliza caso a tratar). Texto do chunk-artigo = só o caput, não o artigo concatenado.
+
+### [ADR-011] — 09 de junho de 2026 — Pipeline de embeddings com `intfloat/multilingual-e5-large`
+
+- **Contexto:** Escolha do modelo de embedding, prefixo de texto, estratégia de normalização e comportamento sob falha/interrupção para o pipeline de indexação vetorial dos 3.767 chunks.
+- **Decisão:**
+  - Modelo: `intfloat/multilingual-e5-large` rodando localmente via `sentence-transformers`
+  - Prefixo de indexação: `"passage: "` — aplicado pelo `build_embedding_text()` em `src/corpus/embeddings.py` (ponto único de montagem do texto)
+  - Prefixo de consulta: `"query: "` — aplicado em tempo de retrieval, nunca na indexação
+  - Normalização: `normalize_embeddings=True` — vetores unitários, cosseno = produto interno
+  - Idempotência: filtra `WHERE embedding IS NULL` a cada execução; interrupções são recuperáveis sem reprocessar chunks já gravados
+  - Batches de 32 (padrão), configurável via `--batch-size`
+- **Justificativa:**
+  - `multilingual-e5-large` é o modelo com melhor desempenho em PT-BR para tarefas de recuperação semântica no STS benchmark multilingual, sem necessidade de fine-tuning
+  - Separação `passage:`/`query:` é requisito explícito do modelo e5 — misturá-los degrada recall
+  - Normalização elimina a divisão pelas normas no cosseno (simplifica o índice HNSW com `vector_cosine_ops`)
+  - Ponto único (`build_embedding_text`) garante que mudança futura de estratégia (ex: enriquecimento com contexto hierárquico do pai) afeta todos os chunks de uma vez
+- **Validação realizada (Semana 4):**
+  - Nível 1: zero NULL, 3.767/3.767 com dim=1024
+  - Nível 2: cosseno par relacionado (Art. 487×488 CLT) = 0.9617 > par não-relacionado (CDC Art. 30 × CLT Art. 66) = 0.9195
+  - Nível 3: top-5 para "fui demitido sem justa causa, tenho direito a quê?" retornou 5 artigos CLT sobre rescisão sem justa causa — sem vazamento CDC
+- **Consequência:** Pipeline robusto a interrupções; modelo fixo no código (sem configuração externa) — troca de modelo exige reindexação completa dos 3.767 chunks.
 
 ---
 

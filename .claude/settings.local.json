@@ -7,7 +7,24 @@
       "Bash(poetry install *)",
       "Bash(poetry show *)",
       "Bash(poetry run *)",
-      "Bash(poetry add *)"
+      "Bash(poetry add *)",
+      "Bash(where python *)",
+      "Bash(poetry --version)",
+      "Bash(where poetry *)",
+      "Bash(poetry env *)",
+      "Bash(poetry config *)",
+      "Read(//c/Users/jhona/AppData/Roaming/pypoetry/**)",
+      "Bash(\"C:/Users/jhona/AppData/Local/Programs/Python/Python314/python.exe\" -c \"import urllib.request; urllib.request.urlretrieve\\('https://install.python-poetry.org', 'poetry-installer.py'\\)\")",
+      "Bash(git reset *)",
+      "Bash(python -c \"from alembic.config import Config; print\\('ok'\\)\")",
+      "Bash(docker exec jusbot-postgres *)",
+      "Bash(python *)",
+      "Bash(docker compose ps *)",
+      "Read(//tmp/**)",
+      "Bash(git -C /d/tcc/jusbot add backend/src/corpus/parser_planalto.py)",
+      "Bash(git -C /d/tcc/jusbot commit -m ' *)",
+      "Bash(2>&1)",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }

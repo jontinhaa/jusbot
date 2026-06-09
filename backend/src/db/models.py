@@ -32,6 +32,7 @@ class Document(Base):
         sa.DateTime(timezone=True), server_default=sa.func.now()
     )
     observacao: Mapped[str | None] = mapped_column(sa.Text)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
 
     chunks: Mapped[list[Chunk]] = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"

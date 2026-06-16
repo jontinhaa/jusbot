@@ -419,8 +419,8 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 ## 📌 STATUS ATUAL DO PROJETO
 
 **Última atualização:** 16 de junho de 2026
-**Fase atual:** Semana 4 concluída — 3.767 chunks embeddados com multilingual-e5-large (local, sentence-transformers), índice HNSW populado, busca semântica validada em 3 níveis. Retrieval de teste retornou os dispositivos corretos para consulta em linguagem natural.
-**Próxima ação:** Semana 5 — motor de retrieval (busca híbrida pgvector + pg_trgm), montagem de contexto e filtro por área.
+**Fase atual:** Semana 5 concluída — motor de retrieval híbrido (vetorial + lexical, fusão RRF) com reconstrução de contexto hierárquico via parent_chunk_id. Validado com 5 consultas de domínios variados.
+**Próxima ação:** Semana 6 — camada de geração (Claude 3.5 Sonnet): montar prompt com chunks recuperados e gerar resposta ancorada.
 **Orientador principal:** Prof. Lennon (IFPA) — Engenharia de Software
 **Coorientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
 **Riscos ativos:** _[a ser preenchido conforme surgirem]_
@@ -571,6 +571,24 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
   - Nível 2: cosseno par relacionado (Art. 487×488 CLT) = 0.9617 > par não-relacionado (CDC Art. 30 × CLT Art. 66) = 0.9195
   - Nível 3: top-5 para "fui demitido sem justa causa, tenho direito a quê?" retornou 5 artigos CLT sobre rescisão sem justa causa — sem vazamento CDC
 - **Consequência:** Pipeline robusto a interrupções (idempotência provou valor: 2 quedas de energia durante a indexação, nada perdido); modelo fixo no código (sem configuração externa) — troca de modelo exige reindexação completa dos 3.767 chunks.
+
+### [ADR-012] — 16 de junho de 2026 — Busca híbrida com Reciprocal Rank Fusion (RRF)
+
+- **Contexto:** Escolha da estratégia de fusão entre busca vetorial (pgvector cosseno) e busca lexical (pg_trgm word_similarity) para o motor de retrieval da Semana 5.
+- **Decisão:**
+  - Fusão por RRF: `score_rrf = Σ 1/(k_const + rank)` sobre todas as listas em que o chunk aparece; `k_const=60` (padrão da literatura, Cormack et al., 2009)
+  - Top-K configurável, default 5; pool de sub-buscas = `max(k*2, 10)` por modalidade
+  - Filtro por `area_juridica` opcional — desligado por padrão (vetor decide a área)
+  - Contexto do pai anexado em `build_context()` via CTE recursiva sobre `parent_chunk_id` — embedding permanece puro; enriquecimento acontece só na saída
+  - Saída estruturada em `ContextualChunk` com endereço montado (`_tipo_label` + `_doc_short`)
+- **Justificativa:**
+  - RRF sobre soma ponderada: não exige calibração de pesos entre modalidades (parâmetro único `k_const`); robusto a diferenças de escala entre scores vetoriais e trgm; comportamento estável mesmo com listas de tamanho desigual
+  - `word_similarity(query, texto)` preferido sobre `similarity()` para queries curtas sobre textos longos (artigos jurídicos de 50–300 palavras)
+  - Contexto do pai resolvido em retrieval (JOIN), não indexado — evita duplicação de texto no banco (ADR-007)
+  - Pool de sub-buscas maior que K evita que a fusão opere sobre conjuntos de candidatos idênticos
+- **Validação (Semana 5):** 5 queries cobrindo trabalho e consumidor; Q1/Q2/Q5 com retrieval correto; Q3 (prazo FGTS) e Q4 (cartão/dinheiro) identificadas como falhas de corpus, não de retrieval.
+- **Limitação conhecida:** RRF pode amplificar falsos-positivos quando ambas as buscas erram de forma correlacionada — se a busca vetorial e a lexical convergem para o mesmo chunk irrelevante (ex.: Q4 #1, Lei 8.036 Art. 20-E §único com score_rrf=0.032), o score final é alto e o falso positivo entra no top-K. Mitigação futura: re-ranking por LLM (cross-encoder) na Semana 6.
+- **Limitação de corpus registrada:** CDC Art. 39-A (Lei 13.455/2017 — diferenciação de preço por meio de pagamento) ausente na fonte `l8078compilado.htm` baixada em 09/06/2026. Registrado em `documents.metadata` (id=17). Não re-ingerido: reprodutibilidade por hash preservada.
 
 ---
 

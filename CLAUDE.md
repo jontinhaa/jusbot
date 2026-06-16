@@ -449,12 +449,13 @@ Ver `docs/database.md` para instruções completas de conexão, troubleshooting 
 
 Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o projeto.
 
-### [ADR-001] — Abril/2026 — Escolha de ChromaDB sobre Weaviate/Pinecone
+### [ADR-001] — Abril/2026 — Escolha de ChromaDB sobre Weaviate/Pinecone ⚠️ REVERTIDO pelo ADR-004
 
 - **Contexto:** Necessidade de banco vetorial para RAG
 - **Decisão:** ChromaDB
 - **Justificativa:** Open-source, roda local, simplicidade adequada para TCC, sem custos de infra
 - **Consequência:** Perdemos escalabilidade multi-nó, mas ganhamos reprodutibilidade total
+- **Status:** Decisão revertida em 30/abr/2026 — ver ADR-004 (migração para PostgreSQL + pgvector por orientação do Prof. Tarcísio Lemos). Este registro é histórico.
 
 ### [ADR-002] — Abril/2026 — Foco em CDC + CLT (subset) como escopo do MVP
 

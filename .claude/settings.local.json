@@ -24,7 +24,16 @@
       "Bash(git -C /d/tcc/jusbot add backend/src/corpus/parser_planalto.py)",
       "Bash(git -C /d/tcc/jusbot commit -m ' *)",
       "Bash(2>&1)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(py --version)",
+      "Bash(py -0p)",
+      "Bash(where py *)",
+      "PowerShell(poetry config *)",
+      "Bash(echo \"exitcode=$?\")",
+      "Bash(pip list *)",
+      "Bash(pip install *)",
+      "Bash(ruff check *)",
+      "Bash(.venv/Scripts/ruff check *)"
     ]
   }
 }

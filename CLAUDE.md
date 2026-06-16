@@ -418,9 +418,9 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ## 📌 STATUS ATUAL DO PROJETO
 
-**Última atualização:** 09 de junho de 2026
-**Fase atual:** Semana 4 concluída — 3.767 chunks embeddados (multilingual-e5-large, local), índice HNSW populado, busca semântica validada (retrieval relevante para query de teste).
-**Próxima ação:** Semana 5 — motor de retrieval (busca híbrida pgvector + pg_trgm) e montagem de contexto pro LLM.
+**Última atualização:** 16 de junho de 2026
+**Fase atual:** Semana 4 concluída — 3.767 chunks embeddados com multilingual-e5-large (local, sentence-transformers), índice HNSW populado, busca semântica validada em 3 níveis. Retrieval de teste retornou os dispositivos corretos para consulta em linguagem natural.
+**Próxima ação:** Semana 5 — motor de retrieval (busca híbrida pgvector + pg_trgm), montagem de contexto e filtro por área.
 **Orientador principal:** Prof. Lennon (IFPA) — Engenharia de Software
 **Coorientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
 **Riscos ativos:** _[a ser preenchido conforme surgirem]_
@@ -570,7 +570,7 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
   - Nível 1: zero NULL, 3.767/3.767 com dim=1024
   - Nível 2: cosseno par relacionado (Art. 487×488 CLT) = 0.9617 > par não-relacionado (CDC Art. 30 × CLT Art. 66) = 0.9195
   - Nível 3: top-5 para "fui demitido sem justa causa, tenho direito a quê?" retornou 5 artigos CLT sobre rescisão sem justa causa — sem vazamento CDC
-- **Consequência:** Pipeline robusto a interrupções; modelo fixo no código (sem configuração externa) — troca de modelo exige reindexação completa dos 3.767 chunks.
+- **Consequência:** Pipeline robusto a interrupções (idempotência provou valor: 2 quedas de energia durante a indexação, nada perdido); modelo fixo no código (sem configuração externa) — troca de modelo exige reindexação completa dos 3.767 chunks.
 
 ---
 

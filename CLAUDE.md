@@ -419,11 +419,11 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 ## 📌 STATUS ATUAL DO PROJETO
 
 **Última atualização:** 16 de junho de 2026
-**Fase atual:** Semana 5 concluída — motor de retrieval híbrido (vetorial + lexical, fusão RRF) com reconstrução de contexto hierárquico via parent_chunk_id. Validado com 5 consultas de domínios variados.
+**Fase atual:** Semana 5 concluída — motor de retrieval híbrido (vetorial + lexical, fusão RRF) com reconstrução de contexto hierárquico via parent*chunk_id. Validado com 5 consultas de domínios variados.
 **Próxima ação:** Semana 6 — camada de geração (Claude 3.5 Sonnet): montar prompt com chunks recuperados e gerar resposta ancorada.
-**Orientador principal:** Prof. Lennon (IFPA) — Engenharia de Software
-**Coorientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
-**Riscos ativos:** _[a ser preenchido conforme surgirem]_
+**Coorientador :** Prof. Lennon (IFPA) — Engenharia de Software
+**Orientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
+**Riscos ativos:** *[a ser preenchido conforme surgirem]\_
 
 ### Setup de Desenvolvimento
 

@@ -274,3 +274,31 @@ A consulta sobre diferenciação de preço por meio de pagamento não recuperou 
 ### Limites de escopo confirmados (não são falhas)
 
 - **Prazo de saque do FGTS (Q3):** a Lei 8.036 estabelece _quando_ se pode sacar (Art. 20, I — despedida sem justa causa), não _até quando_. O prazo de 30 dias vem da Resolução CCFGTS 460/2004, norma infralegal fora do escopo das 5 leis. O sistema recuperou corretamente as hipóteses de saque que a lei contém — não sabe o que a lei não diz. Comportamento esperado.
+
+---
+
+## 14. Achados da Semana 6 (camada de geração)
+
+### Marco — pipeline RAG completo ponta a ponta
+
+A Semana 6 fechou a cadeia inteira: pergunta em linguagem natural → retrieval híbrido (k=8, dedup) → geração fiel e ancorada pelo claude-sonnet-4-6. Pela primeira vez a arquitetura inteira operou junta num resultado correto. Caso ilustrativo: a query sobre férias na demissão recuperou o Art. 146, §único da CLT como chunk-filho, e a geração usou tanto o texto do parágrafo quanto o caput do artigo-pai (recuperado via parent_chunk_id / CTE recursiva, ADR-007). A decisão de modelagem de meses atrás alimentou a geração na prática.
+
+### Achado 1 — Migração de modelo forçada por descontinuação (resiliência da arquitetura)
+
+O Claude 3.5 Sonnet, definido originalmente no ADR-003, foi retirado da API pela Anthropic (fev/2026). A migração para o claude-sonnet-4-6 (sucessor ativo, mesma faixa de custo $3/$15) exigiu apenas a troca do identificador do modelo — a arquitetura é agnóstica ao modelo de geração. Evidência de design resiliente, alinhada ao mesmo princípio do embedding nullable (trocar modelo sem reingerir). Para citar na metodologia.
+
+### Achado 2 — Vazamento sutil de conhecimento próprio na abstenção, e sua correção
+
+Na primeira versão, ao se abster sobre temas fora da base, o modelo afirmava que "aviso prévio e seguro-desemprego são direitos comuns na demissão" — afirmação de fato jurídico que não vinha de nenhum dispositivo recuperado, e sim do conhecimento próprio do modelo. É um vazamento sutil: bem-intencionado (útil ao usuário), mas viola a fidelidade estrita. A correção distinguiu, no prompt, entre AFIRMAR um direito (proibido — conhecimento próprio) e APONTAR um tema a verificar (permitido — protege o usuário sem afirmar conteúdo). Ex. correto: "há temas que costumam surgir — como aviso prévio — que não estão na minha base e não posso confirmar nem detalhar; vale verificar com um advogado". Conclusão metodológica: o grounding em domínio jurídico exige controlar não só a invenção óbvia, mas o vazamento disfarçado de cuidado, especialmente em detalhes de cálculo (prazos, frações, percentuais), que um leigo aceita sem questionar.
+
+### Achado 3 — Abstenção correta nos casos-limite (validação do anti-alucinação)
+
+Duas consultas testaram a abstenção nos casos difíceis e ambas passaram. (a) Prazo de saque do FGTS: a base contém as hipóteses de saque (Art. 20, I da Lei 8.036) mas não o prazo (que está em resolução infralegal). O sistema entregou as hipóteses e declarou explicitamente não ter o prazo, SEM inventar o valor de "30 dias" que existe na realidade mas não no corpus. (b) Diferenciação de preço cartão/dinheiro: o dispositivo pertinente (CDC Art. 39-A) está ausente do corpus por lacuna de fonte; o sistema se absteve honestamente, sem inventar regra. Evidência de que o anti-alucinação funciona não só nos casos fáceis, mas precisamente onde a tentação de "completar" é maior.
+
+### Achado 4 — Fidelidade ao texto ≠ completude jurídica (limitação fundamental)
+
+A consulta sobre férias proporcionais no PEDIDO de demissão expôs um limite estrutural do RAG sobre corpus puramente legislativo. A resposta foi fiel ao Art. 146, §único da CLT, mas juridicamente incompleta: tratou "pedido de demissão" e "demissão sem justa causa" sob o mesmo enquadramento, quando os dois geram conjuntos de direitos distintos (quem pede demissão não tem multa de 40% do FGTS, saque, aviso prévio indenizado nem seguro-desemprego). O modelo não errou — foi fiel ao dispositivo. O problema é que o texto da lei, isolado, não reflete a distinção que a jurisprudência (ex. Súmula 261 do TST) estabelece. Conclusão: um sistema RAG fiel pode produzir resposta juridicamente incompleta quando a interpretação correta depende de súmulas/jurisprudência ausentes do corpus. O direito é texto + súmulas + jurisprudência; o corpus tem apenas o texto. Limitação inerente à escolha de escopo (corpus legislativo), descoberta empiricamente. Trabalho futuro: incorporar súmulas do TST/STJ ao corpus.
+
+### Limitação a investigar (menor)
+
+A query "comprei produto com defeito, posso devolver?" recuperou dispositivos sobre FATO do produto (Art. 12, responsabilidade por dano) e arrependimento (Art. 49, compra fora da loja), mas possivelmente não o Art. 18 (VÍCIO do produto), que é o dispositivo mais central para troca/devolução de produto defeituoso. A resposta foi fiel ao recuperado, mas pode estar incompleta por limitação de retrieval. Verificar se o Art. 18 do CDC é recuperado para essa query.

@@ -418,9 +418,9 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ## 📌 STATUS ATUAL DO PROJETO
 
-**Última atualização:** 16 de junho de 2026
-**Fase atual:** Semana 5 concluída — motor de retrieval híbrido (vetorial + lexical, fusão RRF) com reconstrução de contexto hierárquico via parent*chunk_id. Validado com 5 consultas de domínios variados.
-**Próxima ação:** Semana 6 — camada de geração (Claude 3.5 Sonnet): montar prompt com chunks recuperados e gerar resposta ancorada.
+**Última atualização:** 22 de junho de 2026
+**Fase atual:** Semana 6 concluída — camada de geração (claude-sonnet-4-6) com grounding. Pipeline RAG completo ponta a ponta: pergunta em linguagem natural → retrieval híbrido (k=8, dedup) → geração fiel e ancorada, com abstenção honesta nos limites. Validado com 5 consultas.
+**Próxima ação:** Semana 7 — gerenciamento conversacional (múltiplos turnos, memória de contexto, extração de entidades jurídicas).
 **Coorientador :** Prof. Lennon (IFPA) — Engenharia de Software
 **Orientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
 **Riscos ativos:** *[a ser preenchido conforme surgirem]\_
@@ -590,6 +590,24 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
 - **Validação (Semana 5):** 5 queries cobrindo trabalho e consumidor; Q1/Q2/Q5 com retrieval correto; Q3 (prazo FGTS) e Q4 (cartão/dinheiro) identificadas como falhas de corpus, não de retrieval.
 - **Limitação conhecida:** RRF pode amplificar falsos-positivos quando ambas as buscas erram de forma correlacionada — se a busca vetorial e a lexical convergem para o mesmo chunk irrelevante (ex.: Q4 #1, Lei 8.036 Art. 20-E §único com score_rrf=0.032), o score final é alto e o falso positivo entra no top-K. Mitigação futura: re-ranking por LLM (cross-encoder) na Semana 6.
 - **Limitação de corpus registrada:** CDC Art. 39-A (Lei 13.455/2017 — diferenciação de preço por meio de pagamento) ausente na fonte `l8078compilado.htm` baixada em 09/06/2026. Registrado em `documents.metadata` (id=17). Não re-ingerido: reprodutibilidade por hash preservada.
+
+### [ADR-013] — 22 de junho de 2026 — Camada de geração com grounding (claude-sonnet-4-6)
+
+- **Contexto:** o retrieval (Semana 5) entrega dispositivos relevantes; faltava gerar resposta em linguagem natural ancorada neles, sem alucinação. Público-alvo: pessoas leigas (acesso à justiça). Domínio jurídico onde inventar lei é inaceitável.
+- **Decisão:**
+  - SDK oficial `anthropic`, modelo `claude-sonnet-4-6` (o 3.5 Sonnet do ADR-003 foi retirado da API em fev/2026; 4.6 é o sucessor ativo, mesma faixa de custo $3/$15). Chave em `.env` (fora do git). Cliente isolado em `backend/src/generation/`.
+  - Regras anti-alucinação no system prompt: (1) responder exclusivamente com base nos dispositivos fornecidos, sem conhecimento próprio; (2) citar cada afirmação pelo endereço legal ("Art. 479 da CLT"), nunca pelo número interno do card; (3) abstenção conservadora — cobre lacuna total e parcial; (4) linguagem acessível para leigo; (5) política de abstenção "tema a verificar": ao tocar tema fora da base, pode APONTAR o tema para o usuário verificar, mas NÃO AFIRMAR que é um direito.
+  - Retrieval com k=8 e deduplicação por endereço legal em `build_context()`.
+- **Justificativa:**
+  - Grounding estrito é requisito de segurança no domínio jurídico
+  - Citação por endereço legal torna a resposta verificável pelo usuário e pela banca
+  - Abstenção conservadora prioriza não inventar sobre parecer completo
+  - k=8 (vs k=5) dá melhor cobertura sem o ruído/duplicatas do k=10; dedup por endereço corrige bug de fragmento+pai duplicados
+  - Arquitetura agnóstica ao modelo: migração 3.5→4.6 foi troca de identificador
+- **Validação (Semana 6):** 5 consultas cobrindo trabalho e consumidor; abstenção correta nos casos-limite (prazo FGTS, Art. 39-A ausente). Validação manual — métricas formais na Semana 11.
+- **Consequência / limitações conhecidas:**
+  - Fidelidade ao texto da lei ≠ completude jurídica: o sistema pode gerar resposta fiel mas juridicamente incompleta quando a interpretação depende de súmulas/jurisprudência ausentes do corpus (ex: pedido de demissão vs demissão sem justa causa — Súmula 261 TST). Trabalho futuro: incorporar súmulas.
+  - Vazamento sutil de conhecimento próprio na abstenção exige vigilância contínua no prompt, especialmente em detalhes de cálculo.
 
 ---
 

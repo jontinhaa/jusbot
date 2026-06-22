@@ -13,12 +13,12 @@
 
 O JusBot é um pipeline RAG em camadas. Saber explicar cada camada e por que existe é a base da apresentação.
 
-1. **Aquisição** — baixar o HTML das leis do Planalto e guardar cru no repositório (`data/corpus_raw/`). *Concluído.*
-2. **Parsing** — transformar o HTML em registros estruturados (`documents`, `chunks`). *Concluído (Semana 3).*
-3. **Embedding** — converter cada chunk de texto em um vetor de 1024 dimensões que captura seu significado. *Concluído (Semana 4).*
-4. **Retrieval** — dada uma pergunta, recuperar os chunks mais relevantes por similaridade semântica (pgvector/HNSW) combinada com busca lexical (pg_trgm). *Semana 5.*
-5. **Generation** — montar um prompt com os chunks recuperados e pedir ao Claude 3.5 Sonnet uma resposta em linguagem natural, ancorada na lei. *Semana 6+.*
-6. **Interface** — meio pelo qual o usuário pergunta (CLI/web). *A definir.*
+1. **Aquisição** — baixar o HTML das leis do Planalto e guardar cru no repositório (`data/corpus_raw/`). _Concluído._
+2. **Parsing** — transformar o HTML em registros estruturados (`documents`, `chunks`). _Concluído (Semana 3)._
+3. **Embedding** — converter cada chunk de texto em um vetor de 1024 dimensões que captura seu significado. _Concluído (Semana 4)._
+4. **Retrieval** — dada uma pergunta, recuperar os chunks mais relevantes por similaridade semântica (pgvector/HNSW) combinada com busca lexical (pg_trgm). _Semana 5._
+5. **Generation** — montar um prompt com os chunks recuperados e pedir ao Claude 3.5 Sonnet uma resposta em linguagem natural, ancorada na lei. _Semana 6+._
+6. **Interface** — meio pelo qual o usuário pergunta (CLI/web). _A definir._
 
 **Por que RAG, em uma frase de defesa:** RAG ancora as respostas do LLM em documentos autoritativos recuperados em tempo de consulta, mitigando a alucinação — o que é essencial num sistema jurídico, onde inventar lei é inaceitável. O LLM faz o papel de "explicador" do conteúdo recuperado; ele não é a fonte da verdade, a lei é.
 
@@ -27,38 +27,46 @@ O JusBot é um pipeline RAG em camadas. Saber explicar cada camada e por que exi
 ## 2. Decisões de modelagem do banco (defensáveis individualmente)
 
 ### 2.1. `parent_chunk_id` em vez de `texto_pai` (ADR-007)
+
 - **Decisão:** hierarquia representada por FK auto-referencial (`parent_chunk_id`), não por cópia do texto do pai em cada filho. Contexto do pai reconstruído via JOIN/CTE recursiva no momento da exibição.
 - **Por quê:** elimina duplicação, respeita a 3ª forma normal, remove risco de inconsistência. O JOIN sobre ~3.700 linhas, executado só na montagem da resposta, é barato.
-- **Divergência defendida:** o coorientador sugeriu uma *view materializada* para pré-computar o texto do pai. Recusada com argumento: a view reintroduz a duplicação em outro lugar e exige `REFRESH` manual; é otimização prematura para o volume. Aceita pelo orientador.
+- **Divergência defendida:** o coorientador sugeriu uma _view materializada_ para pré-computar o texto do pai. Recusada com argumento: a view reintroduz a duplicação em outro lugar e exige `REFRESH` manual; é otimização prematura para o volume. Aceita pelo orientador.
 
 ### 2.2. Taxonomia ancorada na LC 95/1998 (ADR-010) — **argumento mais forte**
+
 - **Decisão:** os tipos de chunk (`artigo, paragrafo, inciso, alinea, item`) seguem o art. 10 da Lei Complementar 95/1998, que rege a redação das leis brasileiras.
 - **Por quê:** a articulação interna definida em lei é artigo → parágrafos/incisos → alíneas → itens. O parágrafo único do art. 10 (LC 107/2001) define "dispositivo" como exatamente esses cinco elementos.
-- **Argumento de banca:** a tabela `chunks` **é juridicamente uma tabela de dispositivos**, e a taxonomia coincide *termo a termo* com a enumeração legal. Não foi inventada — foi derivada da norma. Citar a LC 95/1998 na metodologia.
+- **Argumento de banca:** a tabela `chunks` **é juridicamente uma tabela de dispositivos**, e a taxonomia coincide _termo a termo_ com a enumeração legal. Não foi inventada — foi derivada da norma. Citar a LC 95/1998 na metodologia.
 - **Modelagem do caput:** o caput **não é um tipo**; quando `tipo='artigo'`, o campo `texto` guarda o caput. Parágrafos/incisos/alíneas são chunks próprios pendurados via `parent_chunk_id`. Evita reduplicação.
 
 ### 2.3. `VARCHAR + CHECK` em vez de `ENUM` (ADR-008)
+
 - **Decisão:** campos categóricos (`tipo_norma`, `area_juridica`) usam `VARCHAR` com constraint `CHECK`, não `ENUM`.
 - **Por quê:** ENUM no PostgreSQL é rígido de alterar (adicionar valor é restrito; remover/renomear exige recriar o tipo). O projeto prevê expansão (`lei-complementar`, `medida-provisoria`). CHECK dá a mesma integridade com expansão por migration de uma linha.
 
 ### 2.4. JSONB para hierarquia, LTREE adiado (ADR-009)
+
 - **Decisão:** `caminho_hierarquico` é JSONB; LTREE registrado como trabalho futuro.
 - **Por quê:** a busca do sistema é vetorial (HNSW), não navegação hierárquica em SQL. A hierarquia serve a filtro auxiliar e exibição do endereço do chunk — nenhum desses usa os operadores de árvore do LTREE. As poucas consultas de descendência concebíveis já são cobertas pela CTE recursiva sobre `parent_chunk_id`. LTREE seria mais uma extensão no setup (risco de reprodutibilidade) sem uso real.
 
 ### 2.5. `hash_html_bruto` (SHA-256) — pilar de reprodutibilidade
+
 - **Decisão:** cada documento guarda o SHA-256 do HTML bruto ingerido.
 - **Por quê:** rigor metodológico — permite verificar que o pipeline rodando sobre o mesmo input produz o mesmo output (importante na avaliação empírica).
 - **Uso real (não foi só teoria):** detectou o encoding corrompido do CDC e validou que o script de re-download não alterava a Lei 4.090 (usada como "canário"/teste de regressão).
 
 ### 2.6. `embedding` nullable + índice HNSW parcial
+
 - **Decisão:** `embedding` aceita NULL; índice HNSW criado com `WHERE embedding IS NOT NULL`.
 - **Por quê:** pipeline em duas fases (texto primeiro, vetores depois) permite trocar o modelo de embedding sem reingerir texto. O índice parcial ignora chunks ainda sem vetor.
 
 ### 2.7. `tamanho_chunk` como coluna GENERATED
+
 - **Decisão:** `GENERATED ALWAYS AS (length(texto)) STORED` — calculada pelo banco, não pelo parser.
 - **Por quê:** dá a coluna útil para estatística/debugging sem risco de desnormalização — nunca pode divergir do `texto`.
 
 ### Princípio transversal (vale citar como filosofia de projeto)
+
 Várias decisões seguem o mesmo princípio: **não introduzir estrutura ou rigidez que o escopo atual não pede** (sem view materializada, sem ENUM, sem LTREE, sem particionamento). Engenharia adequada ao volume e ao propósito, não ao "e se um dia escalar".
 
 ---
@@ -66,18 +74,22 @@ Várias decisões seguem o mesmo princípio: **não introduzir estrutura ou rigi
 ## 3. Metodologia do parser (Semana 3)
 
 ### 3.1. Estratégia incremental — "menor primeiro"
+
 - Começou pela **Lei 4.090** (10 dispositivos, estrutura plana) para provar o pipeline ponta a ponta; só depois escalou para CDC, FGTS e CLT (a mais complexa) por último.
-- **Por quê:** cada documento validado revelou uma classe nova de problema *antes* de contaminar os outros. É o princípio de "smallest reasonable change" aplicado a ingestão de corpus.
+- **Por quê:** cada documento validado revelou uma classe nova de problema _antes_ de contaminar os outros. É o princípio de "smallest reasonable change" aplicado a ingestão de corpus.
 
 ### 3.2. Validação por aritmética fechada (por documento)
+
 - Para cada documento: **total no HTML = vigentes + descartados + resíduo zero**, contado por tipo.
 - **Argumento de banca:** é a resposta para "como você garantiu que nenhum dispositivo se perdeu na ingestão?". Não é "confia no número", é uma equação que fecha.
 - Exemplo CLT: 837 artigos vigentes + 178 revogados = 1.015 = total de tags `Art.` no HTML bruto. Zero resíduo.
 
 ### 3.3. Detectores plugáveis por padrão de marcação
+
 - **Descoberta empírica:** o Planalto não tem padrão único de HTML. CDC marca revogação em `<font>` solto; Lei 4.090 em `<a>`. A lógica de classificação foi consolidada em **uma função única compartilhada** (`_classify_tipo()`) entre o fluxo de dispositivos vigentes e o de descartados, evitando "parallel hierarchies" (dois caminhos que divergem).
 
 ### 3.4. Critério explícito para dispositivos vazios
+
 - Regra `_ali_corpo_util()`: alínea com zero caracteres alfanuméricos antes do primeiro `;` é artefato de HTML, não dispositivo real — descartada sem entrar no metadata. Critério defensável, não arbitrário.
 
 ---
@@ -86,7 +98,7 @@ Várias decisões seguem o mesmo princípio: **não introduzir estrutura ou rigi
 
 Cada um aconteceu de verdade, foi diagnosticado e corrigido. Listá-los demonstra processo de engenharia sério, não acaso.
 
-1. **Encoding cp1252 corrompido** no download do CDC — 3.440 bytes não-ASCII (`§`, `°`, acentos) substituídos por `?` literal. Detectado por inspeção de byte. Corrigido re-baixando do servidor preservando os bytes originais; parser lê com `from_encoding='cp1252'`. *Fortalece o argumento de reprodutibilidade: input bruto fiel é pré-condição.*
+1. **Encoding cp1252 corrompido** no download do CDC — 3.440 bytes não-ASCII (`§`, `°`, acentos) substituídos por `?` literal. Detectado por inspeção de byte. Corrigido re-baixando do servidor preservando os bytes originais; parser lê com `from_encoding='cp1252'`. _Fortalece o argumento de reprodutibilidade: input bruto fiel é pré-condição._
 2. **psycopg3 gravando JSON `null` literal** em colunas JSONB em vez de SQL `NULL`. Diferença sutil que quebra `WHERE ... IS NULL` e índices parciais. Corrigido com `sa.null()` explícito.
 3. **Healthcheck do Docker** usando `pg_isready -U $USER` sem `-d`, gerando milhares de `FATAL: database "jusbot" does not exist` (ruído cosmético, mas mascara erros reais). Corrigido com `-d $POSTGRES_DB`.
 4. **`<p>` aninhados do FrontPage** roubando o `<a>` de revogação do contexto errado — 32 artigos afetados na CLT.
@@ -100,7 +112,7 @@ Cada um aconteceu de verdade, foi diagnosticado e corrigido. Listá-los demonstr
 
 Apresentar como decisões conscientes de escopo fortalece a maturidade do trabalho.
 
-- **Versionamento por substituição:** o MVP congela o corpus; lei alterada é reingerida sobrescrevendo, sem histórico de versões. As colunas `data_vigencia`/`data_revogacao` preparam versionamento futuro. *Limitação assumida, declarar na metodologia.*
+- **Versionamento por substituição:** o MVP congela o corpus; lei alterada é reingerida sobrescrevendo, sem histórico de versões. As colunas `data_vigencia`/`data_revogacao` preparam versionamento futuro. _Limitação assumida, declarar na metodologia._
 - **Direito vigente, não histórico:** texto revogado/vetado é descartado da ingestão (não vira chunk buscável), mas o número do dispositivo descartado é registrado em `documents.metadata` para rastreabilidade ("por que o Art. X não aparece? Porque foi revogado pela Lei Y").
 - **Adiados para trabalhos futuros:** tabela `fontes` normalizada, versionamento temporal por chunk, LTREE, embedding contextualizado (ver §7).
 
@@ -109,19 +121,22 @@ Apresentar como decisões conscientes de escopo fortalece a maturidade do trabal
 ## 6. Embeddings — Semana 4 (concluída e validada)
 
 ### 6.1. Decisões
+
 - **Modelo:** `intfloat/multilingual-e5-large`, rodando **local** via `sentence-transformers`. Escolha por reprodutibilidade (qualquer um que clone o repo gera os mesmos vetores), custo zero e volume pequeno (roda em CPU sem problema).
-- **Prefixo `passage:` / `query:` (crítico):** o e5 foi treinado esperando `passage:` antes de documentos e `query:` antes de perguntas. Sem o prefixo, a busca degrada silenciosamente. Os chunks foram embeddados com `passage:`; as perguntas usam `query:`. *Pergunta provável de banca — saber explicar.*
+- **Prefixo `passage:` / `query:` (crítico):** o e5 foi treinado esperando `passage:` antes de documentos e `query:` antes de perguntas. Sem o prefixo, a busca degrada silenciosamente. Os chunks foram embeddados com `passage:`; as perguntas usam `query:`. _Pergunta provável de banca — saber explicar._
 - **`normalize_embeddings=True`:** gera vetores unitários (norma 1), o que casa com `vector_cosine_ops` do índice HNSW e estabiliza a similaridade de cosseno.
-- **Pipeline idempotente:** processa só chunks com `embedding IS NULL`. *Provou seu valor: duas quedas de energia durante a geração, nada perdido nem reprocessado em duplicata.*
+- **Pipeline idempotente:** processa só chunks com `embedding IS NULL`. _Provou seu valor: duas quedas de energia durante a geração, nada perdido nem reprocessado em duplicata._
 - **Função `build_embedding_text()` isolada:** único ponto que monta o texto a embeddar. Permite testar enriquecimento (ver §7) com um diff de 3 linhas.
 
 ### 6.2. Validação em 3 níveis
+
 - **Nível 1 (estrutural):** zero `embedding IS NULL`, todos os vetores com dimensão 1024.
 - **Nível 2 (sanidade semântica):** par relacionado (Art. 487 × Art. 488 da CLT, ambos sobre aviso prévio) deu cosseno **0.9617**; par não-relacionado (CDC Art. 30 × CLT Art. 66) deu **0.9195**. **Ordem correta** (relacionado > não-relacionado).
-  - **Por que a margem é pequena (0.042) e isso é esperado:** o e5 e modelos multilingues comprimem as similaridades num intervalo estreito e alto. O sinal está na *ordem relativa*, não no valor absoluto. Além disso, o par "não-relacionado" eram dois textos jurídicos normativos — compartilham registro e vocabulário formal, logo são naturalmente próximos em forma, apenas distantes em tema. O modelo está medindo similaridade semântica real.
-- **Nível 3 (retrieval real):** consulta em linguagem natural de leigo — *"fui demitido sem justa causa, tenho direito a quê?"* — recuperou os 5 dispositivos mais próximos, **todos da CLT e todos sobre rescisão sem justa causa** (Art. 479, Art. 147, Art. 480, §2º, parágrafo único), **sem contaminação do CDC**.
+  - **Por que a margem é pequena (0.042) e isso é esperado:** o e5 e modelos multilingues comprimem as similaridades num intervalo estreito e alto. O sinal está na _ordem relativa_, não no valor absoluto. Além disso, o par "não-relacionado" eram dois textos jurídicos normativos — compartilham registro e vocabulário formal, logo são naturalmente próximos em forma, apenas distantes em tema. O modelo está medindo similaridade semântica real.
+- **Nível 3 (retrieval real):** consulta em linguagem natural de leigo — _"fui demitido sem justa causa, tenho direito a quê?"_ — recuperou os 5 dispositivos mais próximos, **todos da CLT e todos sobre rescisão sem justa causa** (Art. 479, Art. 147, Art. 480, §2º, parágrafo único), **sem contaminação do CDC**.
 
 ### 6.3. Resultado empírico citável (capítulo de resultados)
+
 > Uma consulta formulada em linguagem coloquial não-técnica recuperou os cinco dispositivos legais corretos, todos pertencentes à área jurídica pertinente (trabalhista), sem vazamento de outras áreas do corpus. Isso evidencia que (a) a busca semântica capta significado, não palavras-chave; (b) o filtro por área emerge do embedding sem regra explícita; (c) o casamento de prefixos `query:`/`passage:` está correto.
 
 ---
@@ -136,18 +151,19 @@ Apresentar como decisões conscientes de escopo fortalece a maturidade do trabal
 
 **Totais por documento (estado ao fim do Bloco 3):**
 
-| Documento | Código | Chunks vigentes | Descartados |
-|-----------|--------|-----------------|-------------|
-| CLT | decreto-lei-5452-1943 | 2.709 | 219 |
-| FGTS | lei-8036-1990 | 605 | 33 |
-| CDC | lei-8078-1990 | 434 | 39 |
-| Lei 4.749 (13º) | lei-4749-1965 | 10 | 1 |
-| Lei 4.090 (13º) | lei-4090-1962 | 9 | 0 |
-| **TOTAL** | | **3.767** | **292** |
+| Documento       | Código                | Chunks vigentes | Descartados |
+| --------------- | --------------------- | --------------- | ----------- |
+| CLT             | decreto-lei-5452-1943 | 2.709           | 219         |
+| FGTS            | lei-8036-1990         | 605             | 33          |
+| CDC             | lei-8078-1990         | 434             | 39          |
+| Lei 4.749 (13º) | lei-4749-1965         | 10              | 1           |
+| Lei 4.090 (13º) | lei-4090-1962         | 9               | 0           |
+| **TOTAL**       |                       | **3.767**       | **292**     |
 
 Total de dispositivos processados: 3.767 vigentes + 292 descartados = **4.059**.
 
 **Detalhamento por tipo (documentos validados com tabela completa):**
+
 - **CLT:** 837 artigos, 1.022 parágrafos, 375 incisos, 475 alíneas. (99 artigos "letrados" — 58-A, 75-F etc., resultado da Reforma Trabalhista de 2017 e emendas; o maior número é o Art. 922, fim real da CLT.)
 - **FGTS:** 93 artigos, 231 parágrafos, 193 incisos, 88 alíneas, 0 itens (a lei não usa esse nível).
 
@@ -158,11 +174,12 @@ Total de dispositivos processados: 3.767 vigentes + 292 descartados = **4.059**.
 ## 9. Fundamentação teórica (referências para o texto)
 
 Os materiais introdutórios usados para entendimento prático **não** são fontes acadêmicas — para o TCC, usar papers:
+
 - **Lewis et al. (2020)** — paper original de RAG ("Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks").
 - **Pipitone & Houir Alami (2024)** — LegalBench-RAG (RAG jurídico; já citado no croqui do banco, justifica a busca híbrida).
 - **Justificativa da busca híbrida (pgvector + pg_trgm):** termos jurídicos específicos (`art. 477`, `aviso prévio`) podem não ser bem capturados só por similaridade semântica; o componente lexical melhora o recall. Alinhado com a literatura de RAG jurídico.
 
-*Quando for escrever a fundamentação teórica, buscar os papers formais com o orientador.*
+_Quando for escrever a fundamentação teórica, buscar os papers formais com o orientador._
 
 ---
 
@@ -184,7 +201,7 @@ R: Característica conhecida de modelos de embedding modernos, que concentram as
 R: Validação por aritmética fechada por documento: total de dispositivos no HTML = vigentes + descartados, com resíduo zero, contado por tipo. E o `hash_html_bruto` garante que o input é reproduzível.
 
 **P: O sistema funciona para leis alteradas após a ingestão?**
-R: Não no MVP — o corpus é congelado e a atualização é por reingestão (substituição). É limitação assumida e declarada; as colunas `data_vigencia`/`data_revogacao` preparam o versionamento como trabalho futuro. O `hash_html_bruto` permite *detectar* que uma lei mudou.
+R: Não no MVP — o corpus é congelado e a atualização é por reingestão (substituição). É limitação assumida e declarada; as colunas `data_vigencia`/`data_revogacao` preparam o versionamento como trabalho futuro. O `hash_html_bruto` permite _detectar_ que uma lei mudou.
 
 **P: Por que escolheu o multilingual-e5-large e não um modelo só de português ou um modelo maior?**
 R: É multilingue com bom desempenho em português, aberto (reprodutível e gratuito), e gera vetores de 1024 dimensões adequados ao volume. Rodar local evita dependência de API e custo. O pipeline é desenhado para trocar de modelo sem reingerir texto (embedding nullable), então a escolha é reversível.
@@ -201,25 +218,59 @@ R: A heterogeneidade do HTML do Planalto — encoding corrompido, marcações in
 - **Semana 3:** modelagem do banco (croqui v2, ADR-007 a 010) + parser HTML. ✅
 - **Semana 4:** embeddings + índice HNSW + validação de retrieval. ✅
 - **Semana 5:** motor de retrieval híbrido (RRF) + reconstrução de contexto via parent_chunk_id. ✅
-- **Semana 6+:** geração com Claude 3.5 Sonnet; ajustes.
+- **Semana 6+:** geração com claude-sonnet-4-6; ajustes.
 - **Semana 11:** avaliação empírica (rigor científico; aqui entra o experimento puro vs. enriquecido do §7).
 
 ---
 
+## 13. Limitação conhecida do retrieval — Semana 6
+
+**Art. 477 (verbas rescisórias) e Art. 487-491 (aviso prévio) não sobem no retrieval para queries genéricas como "tenho direito a quê?".**
+
+Testado em k=5, k=8 e k=10: nenhum dos dois aparece. Causa: a query é semanticamente vaga e não casa com o vocabulário específico desses artigos ("aviso prévio", "rescisão indireta", "comunicação prévia"). O modelo semântico e a busca lexical convergem para artigos que contêm "sem justa causa" explicitamente, deixando artigos que TRATAM do tema mas não usam a frase fora do top-k.
+
+**Natureza:** limitação do retrieval semântico com queries curtas/genéricas — não é bug, é característica conhecida da busca vetorial sem query expansion.
+
+**Candidata a trabalho futuro:** query expansion com sinônimos jurídicos ("demissão sem justa causa" → expandir com "aviso prévio", "verbas rescisórias", "Art. 477") poderia resolver. Também possível: HyDE (Hypothetical Document Embeddings) — gerar uma resposta hipotética e embeddá-la como query.
+
+**Impacto na Semana 6:** o modelo foi instruído a apontar temas a verificar (sem afirmar direitos fora da base) — solução de curto prazo adequada para o MVP.
+
 ## 12. Achados da Semana 5 (motor de retrieval)
 
 ### Achado 1 — A busca híbrida recupera o que nenhum método isolado recupera
+
 Na consulta "fui demitido sem justa causa, tenho direito a quê?", o dispositivo do FGTS sobre a multa de 40% na demissão sem justa causa (Lei 8.036, Art. 18, §1º) aparecia em 8º lugar na busca vetorial e em 6º na lexical — fora do top-5 de ambas, isoladamente. A fusão RRF somou as duas contribuições e o promoveu ao top-5 final. Como a multa de 40% é um dos principais direitos do demitido, o resultado mostra que a busca híbrida captura dispositivos relevantes situados na fronteira de ambos os métodos, que cada busca isolada deixaria de fora. É a justificativa empírica, no próprio corpus, para a decisão de busca híbrida (alinhada à literatura de RAG jurídico, LegalBench-RAG). Vai para o capítulo de resultados.
 
 ### Achado 2 — Limitação do RRF: erros correlacionados são amplificados, não filtrados
+
 O RRF filtra falsos-positivos que aparecem em apenas uma das listas (ex.: na Etapa 1, o CDC Art. 39 entrou só na busca lexical por coincidência da string "sem justa causa" e foi descartado da fusão). Porém, quando os dois métodos erram de forma correlacionada — atraídos pelas mesmas palavras enganosas —, a fusão reforça o erro em vez de eliminá-lo. Exemplo: na consulta sobre preço diferente no cartão/dinheiro, o Art. 20-E da Lei 8.036 (tarifa bancária do FGTS) chegou a 1º lugar porque "cobrança/tarifa/dinheiro" casou tanto na busca vetorial quanto na lexical, apesar de ser juridicamente irrelevante. Conclusão: a fusão por concordância pressupõe que os métodos errem de forma independente; sob erro correlacionado, a premissa quebra. Mitigações: filtro opcional por área jurídica (já implementado) e a própria camada de geração (o LLM pode descartar contexto irrelevante). Vai para o capítulo de limitações; revisitar na avaliação empírica da Semana 11 com métricas formais.
 
 ### Achado 3 — Lacuna de fonte do Planalto justifica empiricamente o versionamento de corpus
+
 A consulta sobre diferenciação de preço por meio de pagamento não recuperou o dispositivo pertinente (CDC Art. 39-A, incluído pela Lei 13.455/2017) porque ele não existe na fonte ingerida: a versão compilada do Planalto (l8078compilado.htm, baixada em 09/06/2026) não incorporou aquela emenda. Não é falha do parser nem do retrieval — é defasagem seletiva da fonte governamental. O achado evidencia que fontes de texto compilado podem apresentar lacunas na incorporação de emendas, o que reforça a necessidade de (a) validação de atualidade do corpus e (b) versionamento, ambos apontados como trabalhos futuros. A lacuna, portanto, valida a decisão de design já registrada (versionamento por substituição no MVP, com data_vigencia/data_revogacao preparando o futuro). Documentada como limitação de corpus, não corrigida (re-ingerir a mesma fonte não a resolveria, e costurar fonte alternativa enfraqueceria a reprodutibilidade por hash_html_bruto).
 
 ### Limites de escopo confirmados (não são falhas)
-- **Prazo de saque do FGTS (Q3):** a Lei 8.036 estabelece *quando* se pode sacar (Art. 20, I — despedida sem justa causa), não *até quando*. O prazo de 30 dias vem da Resolução CCFGTS 460/2004, norma infralegal fora do escopo das 5 leis. O sistema recuperou corretamente as hipóteses de saque que a lei contém — não sabe o que a lei não diz. Comportamento esperado.
+
+- **Prazo de saque do FGTS (Q3):** a Lei 8.036 estabelece _quando_ se pode sacar (Art. 20, I — despedida sem justa causa), não _até quando_. O prazo de 30 dias vem da Resolução CCFGTS 460/2004, norma infralegal fora do escopo das 5 leis. O sistema recuperou corretamente as hipóteses de saque que a lei contém — não sabe o que a lei não diz. Comportamento esperado.
 
 ---
 
-*Documento vivo — acrescentar marcos, decisões e bugs ao longo das próximas semanas. Na semana de escrita do TCC, consolidar daqui para os capítulos de metodologia e resultados.*
+_Documento vivo — acrescentar marcos, decisões e bugs ao longo das próximas semanas. Na semana de escrita do TCC, consolidar daqui para os capítulos de metodologia e resultados._
+
+## Achados da Semana 5 (motor de retrieval)
+
+### Achado 1 — A busca híbrida recupera o que nenhum método isolado recupera
+
+Na consulta "fui demitido sem justa causa, tenho direito a quê?", o dispositivo do FGTS sobre a multa de 40% na demissão sem justa causa (Lei 8.036, Art. 18, §1º) aparecia em 8º lugar na busca vetorial e em 6º na lexical — fora do top-5 de ambas, isoladamente. A fusão RRF somou as duas contribuições e o promoveu ao top-5 final. Como a multa de 40% é um dos principais direitos do demitido, o resultado mostra que a busca híbrida captura dispositivos relevantes situados na fronteira de ambos os métodos, que cada busca isolada deixaria de fora. É a justificativa empírica, no próprio corpus, para a decisão de busca híbrida (alinhada à literatura de RAG jurídico, LegalBench-RAG). Vai para o capítulo de resultados.
+
+### Achado 2 — Limitação do RRF: erros correlacionados são amplificados, não filtrados
+
+O RRF filtra falsos-positivos que aparecem em apenas uma das listas (ex.: na Etapa 1, o CDC Art. 39 entrou só na busca lexical por coincidência da string "sem justa causa" e foi descartado da fusão). Porém, quando os dois métodos erram de forma correlacionada — atraídos pelas mesmas palavras enganosas —, a fusão reforça o erro em vez de eliminá-lo. Exemplo: na consulta sobre preço diferente no cartão/dinheiro, o Art. 20-E da Lei 8.036 (tarifa bancária do FGTS) chegou a 1º lugar porque "cobrança/tarifa/dinheiro" casou tanto na busca vetorial quanto na lexical, apesar de ser juridicamente irrelevante. Conclusão: a fusão por concordância pressupõe que os métodos errem de forma independente; sob erro correlacionado, a premissa quebra. Mitigações: filtro opcional por área jurídica (já implementado) e a própria camada de geração (o LLM pode descartar contexto irrelevante). Vai para o capítulo de limitações; revisitar na avaliação empírica da Semana 11 com métricas formais.
+
+### Achado 3 — Lacuna de fonte do Planalto justifica empiricamente o versionamento de corpus
+
+A consulta sobre diferenciação de preço por meio de pagamento não recuperou o dispositivo pertinente (CDC Art. 39-A, incluído pela Lei 13.455/2017) porque ele não existe na fonte ingerida: a versão compilada do Planalto (l8078compilado.htm, baixada em 09/06/2026) não incorporou aquela emenda. Não é falha do parser nem do retrieval — é defasagem seletiva da fonte governamental. O achado evidencia que fontes de texto compilado podem apresentar lacunas na incorporação de emendas, o que reforça a necessidade de (a) validação de atualidade do corpus e (b) versionamento, ambos apontados como trabalhos futuros. A lacuna, portanto, valida a decisão de design já registrada (versionamento por substituição no MVP, com data_vigencia/data_revogacao preparando o futuro). Documentada como limitação de corpus, não corrigida (re-ingerir a mesma fonte não a resolveria, e costurar fonte alternativa enfraqueceria a reprodutibilidade por hash_html_bruto).
+
+### Limites de escopo confirmados (não são falhas)
+
+- **Prazo de saque do FGTS (Q3):** a Lei 8.036 estabelece _quando_ se pode sacar (Art. 20, I — despedida sem justa causa), não _até quando_. O prazo de 30 dias vem da Resolução CCFGTS 460/2004, norma infralegal fora do escopo das 5 leis. O sistema recuperou corretamente as hipóteses de saque que a lei contém — não sabe o que a lei não diz. Comportamento esperado.

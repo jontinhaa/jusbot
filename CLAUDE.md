@@ -124,7 +124,7 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 
 ### IA e RAG
 
-- **LLM:** Claude 3.5 Sonnet via API (ou GPT-4o como alternativa)
+- **LLM:** claude-sonnet-4-6 via API Anthropic (claude-3-5-sonnet retirado fev/2026)
 - **LangChain:** orquestração do pipeline RAG
 - **PostgreSQL + pgvector:** banco vetorial persistente
 - **sentence-transformers:** embeddings (`intfloat/multilingual-e5-large`)
@@ -160,7 +160,7 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 
 | Decisão           | Escolha                                   | Justificativa                                        |
 | ----------------- | ----------------------------------------- | ---------------------------------------------------- |
-| LLM               | Claude 3.5 Sonnet                         | Melhor raciocínio em PT-BR, bom custo/benefício      |
+| LLM               | claude-sonnet-4-6                         | Melhor raciocínio em PT-BR, bom custo/benefício; 3.5 Sonnet retirado fev/2026 |
 | Banco vetorial    | PostgreSQL + pgvector                     | Persistência estruturada, LGPD-compliant, escalável  |
 | Chunking jurídico | Hierárquico (Título > Artigo > Parágrafo) | Preserva contexto legal, melhora raciocínio jurídico |
 | Linguagem backend | Python                                    | Ecossistema de IA maduro, LangChain nativo           |
@@ -464,12 +464,12 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
 - **Justificativa:** Maior impacto social, literatura mais acessível, volume de casos mais alto
 - **Consequência:** Outros domínios ficam como Trabalho Futuro
 
-### [ADR-003] — Abril/2026 — Claude 3.5 Sonnet como LLM principal
+### [ADR-003] — Abril/2026 → Junho/2026 — LLM principal: claude-3-5-sonnet → claude-sonnet-4-6
 
-- **Contexto:** Escolha do LLM para raciocínio jurídico
-- **Decisão:** Claude 3.5 Sonnet via API Anthropic
-- **Justificativa:** Melhor desempenho em PT-BR para raciocínio complexo, custo aceitável para TCC
-- **Consequência:** Dependência de API paga; alternativa (LLaMA 3 local) documentada como fallback
+- **Decisão original (Abril/2026):** Claude 3.5 Sonnet via API Anthropic
+- **Justificativa original:** Melhor desempenho em PT-BR para raciocínio complexo, custo aceitável para TCC
+- **Migração (Junho/2026):** claude-3-5-sonnet retirado da API Anthropic em fev/2026 — modelo indisponível, chaves ativas retornam 404. Migrado para **claude-sonnet-4-6**, substituto ativo direto: mesma faixa de custo ($3/$15 por MTok), capacidade superior, suportado na API. Model ID: `claude-sonnet-4-6`.
+- **Consequência:** Dependência de API paga mantida; alternativa (LLaMA 3 local) permanece documentada como fallback
 
 ### [ADR-004] — 30 de abril/2026 — Migração ChromaDB → PostgreSQL + pgvector
 

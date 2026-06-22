@@ -404,4 +404,14 @@ def build_context(session: Session, items: list[HybridItem]) -> list[ContextualC
             )
         )
 
-    return result
+    # Deduplicação por endereço legal: dois chunk_ids distintos podem mapear
+    # para o mesmo dispositivo quando o banco tem fragmentação. Mantém o de
+    # maior score_rrf (o result está ordenado por score desc, logo o primeiro
+    # encontrado é o mais relevante).
+    seen: set[str] = set()
+    deduped: list[ContextualChunk] = []
+    for c in result:
+        if c.endereco not in seen:
+            seen.add(c.endereco)
+            deduped.append(c)
+    return deduped

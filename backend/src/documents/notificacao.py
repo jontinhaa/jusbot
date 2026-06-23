@@ -1,7 +1,7 @@
 """Geração de notificação extrajudicial — JusBot, Semana 8.
 
 Pipeline:
-    relato → RAG (search_hybrid + build_context) → fatos via LLM
+    relato → RAG com filtro de área → fatos via LLM
            → validação estrutural → render Jinja2 → NotificacaoResult
 
 Divisão de responsabilidades:
@@ -16,120 +16,28 @@ O LLM nunca preenche nome, CPF/CNPJ ou valor — vêm exclusivamente do formulá
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from datetime import date
 
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from sqlalchemy.orm import Session
 
-from src.generation.client import _MODEL, get_client
-from src.rag.retrieval import ContextualChunk, build_context, search_hybrid
+from src.rag.retrieval import ContextualChunk
 
+from .base import (
+    TEMPLATES_DIR,
+    buscar_fundamento,
+    criar_jinja_env,
+    dias_extenso,
+    formatar_data,
+    redigir_fatos,
+    validar_campos_base,
+)
 from .schemas import DadosCaso, NotificacaoResult
 
-_TEMPLATES_DIR = Path(__file__).parent / "templates"
 _TEMPLATE_NAME = "notificacao_extrajudicial.jinja2"
-
-_MESES_PT = {
-    1: "janeiro",
-    2: "fevereiro",
-    3: "março",
-    4: "abril",
-    5: "maio",
-    6: "junho",
-    7: "julho",
-    8: "agosto",
-    9: "setembro",
-    10: "outubro",
-    11: "novembro",
-    12: "dezembro",
-}
-
-_EXTENSO: dict[int, str] = {
-    1: "um",
-    2: "dois",
-    3: "três",
-    4: "quatro",
-    5: "cinco",
-    6: "seis",
-    7: "sete",
-    8: "oito",
-    9: "nove",
-    10: "dez",
-    11: "onze",
-    12: "doze",
-    13: "treze",
-    14: "quatorze",
-    15: "quinze",
-    16: "dezesseis",
-    17: "dezessete",
-    18: "dezoito",
-    19: "dezenove",
-    20: "vinte",
-    30: "trinta",
-    45: "quarenta e cinco",
-    60: "sessenta",
-    90: "noventa",
-    120: "cento e vinte",
-    180: "cento e oitenta",
-}
 
 
 class NotificacaoError(Exception):
     pass
-
-
-def _dias_extenso(n: int) -> str:
-    if n in _EXTENSO:
-        return _EXTENSO[n]
-    if n < 100:
-        dezena = (n // 10) * 10
-        unidade = n % 10
-        if dezena in _EXTENSO and unidade in _EXTENSO:
-            return f"{_EXTENSO[dezena]} e {_EXTENSO[unidade]}"
-    return str(n)
-
-
-def _formatar_data(d: object) -> str:
-    from datetime import date as date_type
-
-    assert isinstance(d, date_type)
-    return f"{d.day} de {_MESES_PT[d.month]} de {d.year}"
-
-
-def _filtro_preencher(value: str | None, label: str) -> str:
-    """Filtro Jinja2: None ou vazio → '[A PREENCHER: <label>]', senão o valor."""
-    if value is None or str(value).strip() == "":
-        return f"[A PREENCHER: {label}]"
-    return str(value)
-
-
-def _redigir_fatos(relato: str) -> str:
-    """LLM redige a seção DOS FATOS em linguagem jurídica formal.
-
-    Usa EXCLUSIVAMENTE o que o usuário narrou — não acrescenta, não presume.
-    """
-    system = (
-        "Você é um redator de documentos jurídicos do sistema JusBot. "
-        "Sua tarefa é redigir a seção 'DOS FATOS' de uma notificação extrajudicial.\n\n"
-        "REGRAS ABSOLUTAS:\n"
-        "1. Use EXCLUSIVAMENTE os fatos narrados pelo usuário. Não invente, não presuma, "
-        "não acrescente detalhes que não foram mencionados.\n"
-        "2. Escreva em linguagem formal, em 3ª pessoa, no tempo passado.\n"
-        "3. Mencione datas, valores e nomes APENAS se o usuário os forneceu explicitamente.\n"
-        "4. Seja conciso: 2 a 4 parágrafos.\n"
-        "5. NÃO inclua fundamentação legal — isso vai em seção separada.\n"
-        "6. NÃO inclua cabeçalho, título da seção nem texto introdutório. "
-        "Retorne apenas o corpo da narrativa factual."
-    )
-
-    client = get_client()
-    response = client.messages.create(
-        model=_MODEL,
-        max_tokens=800,
-        system=system,
-        messages=[{"role": "user", "content": f"Relato do usuário:\n{relato}"}],
-    )
-    return response.content[0].text.strip()
 
 
 def _validar_campos(
@@ -137,16 +45,12 @@ def _validar_campos(
     fatos: str,
     chunks: list[ContextualChunk],
 ) -> None:
-    """Verifica presença dos campos obrigatórios antes de renderizar.
+    """Validação específica da notificação: base + requerimentos não-vazio.
 
-    Campos opcionais (qualificação do notificado, endereço, etc.) nunca disparam erro —
-    ficam como marcador [A PREENCHER] no documento.
+    Campos opcionais (qualificação do notificado, endereço, etc.) nunca disparam
+    erro — ficam como marcador [A PREENCHER] no documento.
     """
-    faltando: list[str] = []
-    if not fatos.strip():
-        faltando.append("fatos (LLM retornou vazio)")
-    if not chunks:
-        faltando.append("fundamento_legal (RAG não encontrou dispositivos relevantes)")
+    faltando = validar_campos_base(fatos, chunks)
     if not dados.requerimentos:
         faltando.append("requerimentos (lista vazia — ao menos um item obrigatório)")
     if faltando:
@@ -180,29 +84,17 @@ def gerar_notificacao(
                           ausentes no resultado.
     """
     # Etapa 1 — RAG: recupera dispositivos da área declarada pelo usuário
-    hybrid_items = search_hybrid(session, emb_model, relato, k=k, area=dados.area)
-    chunks = build_context(session, hybrid_items)
+    chunks = buscar_fundamento(session, emb_model, relato, k=k, area=dados.area)
 
     # Etapa 2 — LLM redige apenas os fatos (ancorado no relato, nunca nos dados duros)
-    fatos = _redigir_fatos(relato)
+    fatos = redigir_fatos(relato)
 
     # Etapa 3 — Validação estrutural: recusa devolver peça incompleta
     _validar_campos(dados, fatos, chunks)
 
     # Etapa 4 — Renderiza o template com dados duros + conteúdo gerado/fornecido
-    env = Environment(
-        loader=FileSystemLoader(str(_TEMPLATES_DIR)),
-        undefined=StrictUndefined,
-        trim_blocks=True,
-        lstrip_blocks=True,
-    )
-    env.filters["preencher"] = _filtro_preencher
-
-    template = env.get_template(_TEMPLATE_NAME)
-
-    fundamento_legal = [{"endereco": c.endereco, "texto": c.texto} for c in chunks]
-
-    documento = template.render(
+    env = criar_jinja_env(TEMPLATES_DIR)
+    documento = env.get_template(_TEMPLATE_NAME).render(
         # Notificante
         notificante_nome=dados.notificante_nome,
         notificante_cpf=dados.notificante_cpf,
@@ -222,13 +114,13 @@ def gerar_notificacao(
         # Caso
         assunto=dados.assunto,
         prazo_dias=dados.prazo_dias,
-        prazo_dias_extenso=_dias_extenso(dados.prazo_dias),
+        prazo_dias_extenso=dias_extenso(dados.prazo_dias),
         cidade=dados.cidade,
-        data_formatada=_formatar_data(dados.data),
+        data_formatada=formatar_data(dados.data),
         # Conteúdo
         fatos=fatos,
         requerimentos=dados.requerimentos,
-        fundamento_legal=fundamento_legal,
+        fundamento_legal=[{"endereco": c.endereco, "texto": c.texto} for c in chunks],
     )
 
     return NotificacaoResult(
@@ -239,7 +131,7 @@ def gerar_notificacao(
     )
 
 
-# ─── Teste standalone ────────────────────────────────────────────────────────
+# ─── Testes standalone ───────────────────────────────────────────────────────
 
 
 def _setup_engine_e_model() -> tuple[object, object]:
@@ -259,10 +151,8 @@ def _setup_engine_e_model() -> tuple[object, object]:
 
     raw_url = os.environ.get("DATABASE_URL", "")
     if not raw_url:
-        import sys as _sys
-
-        print("ERRO: DATABASE_URL não definida no .env", file=_sys.stderr)
-        _sys.exit(1)
+        print("ERRO: DATABASE_URL não definida no .env", file=sys.stderr)
+        sys.exit(1)
 
     db_url = raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
     engine = create_engine(db_url, echo=False)
@@ -280,7 +170,6 @@ def _setup_engine_e_model() -> tuple[object, object]:
 def _teste_a_consumidor() -> None:
     """(a) Internet abaixo da velocidade, area='consumidor' — deve trazer CDC."""
     import time
-    from datetime import date
 
     engine, model = _setup_engine_e_model()
 
@@ -351,7 +240,6 @@ def _teste_a_consumidor() -> None:
 def _teste_b_trabalhista() -> None:
     """(b) Demissão sem justa causa, area='trabalho' — deve trazer CLT."""
     import time
-    from datetime import date
 
     engine, model = _setup_engine_e_model()
 
@@ -418,7 +306,7 @@ def _teste_b_trabalhista() -> None:
 if __name__ == "__main__":
     import sys
 
-    modo = sys.argv[1] if len(sys.argv) > 1 else "ambos"
+    modo = sys.argv[1] if len(sys.argv) > 1 else "a"
     if modo == "a":
         _teste_a_consumidor()
     elif modo == "b":

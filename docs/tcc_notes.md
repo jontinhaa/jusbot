@@ -16,7 +16,7 @@ O JusBot é um pipeline RAG em camadas. Saber explicar cada camada e por que exi
 1. **Aquisição** — baixar o HTML das leis do Planalto e guardar cru no repositório (`data/corpus_raw/`). _Concluído._
 2. **Parsing** — transformar o HTML em registros estruturados (`documents`, `chunks`). _Concluído (Semana 3)._
 3. **Embedding** — converter cada chunk de texto em um vetor de 1024 dimensões que captura seu significado. _Concluído (Semana 4)._
-4. **Retrieval** — dada uma pergunta, recuperar os chunks mais relevantes por similaridade semântica (pgvector/HNSW) combinada com busca lexical (pg_trgm). _Semana 5._
+4. **Retrieval** — dada uma pergunta, recuperar os chunks mais relevantes por similaridade semântica (pgvector/HNSW) combinada com busca lexical (pg*trgm). \_Semana 5.*
 5. **Generation** — montar um prompt com os chunks recuperados e pedir ao Claude 3.5 Sonnet uma resposta em linguagem natural, ancorada na lei. _Semana 6+._
 6. **Interface** — meio pelo qual o usuário pergunta (CLI/web). _A definir._
 
@@ -302,3 +302,13 @@ A consulta sobre férias proporcionais no PEDIDO de demissão expôs um limite e
 ### Limitação a investigar (menor)
 
 A query "comprei produto com defeito, posso devolver?" recuperou dispositivos sobre FATO do produto (Art. 12, responsabilidade por dano) e arrependimento (Art. 49, compra fora da loja), mas possivelmente não o Art. 18 (VÍCIO do produto), que é o dispositivo mais central para troca/devolução de produto defeituoso. A resposta foi fiel ao recuperado, mas pode estar incompleta por limitação de retrieval. Verificar se o Art. 18 do CDC é recuperado para essa query.
+
+## NOVA ORDEM DE SEMANA (BASICAMENTE A ANTIGA SEMANA 7)
+
+1. Pipeline único de geração parametrizado por tipo de documento. O sistema não tem três geradores independentes; tem um pipeline (recuperação ancorada por área → redação assistida por LLM restrita aos fatos → validação estrutural → renderização) que cada tipo de peça parametriza com seu template e seus campos. Você generalizou "gerar documento jurídico" numa operação única. É argumento de arquitetura de software — teu curso.
+
+2. Separação entre o que é determinístico e o que é generativo, por critério de risco jurídico. Esse é o ponto mais forte e mais original. Você dividiu o documento por grau de vinculação jurídica: o que vincula (fundamento legal, requerimento, consequência) é determinístico — vem do RAG, do usuário ou de texto fixo validado por advogado. Só a narrativa factual, que não cria obrigação, é gerada por LLM. Não foi uma divisão técnica arbitrária; foi guiada pelo risco. Isso responde de frente a pergunta de banca "como você garante que a IA não inventa conteúdo jurídico num documento?".
+
+3. Decisão de design contra over-engineering (funções vs. herança). Documentar que você avaliou classe base e recusou, com justificativa de adequação ao escopo, mostra critério. Liga com a filosofia transversal do projeto (recusa de ENUM, de view materializada, de LTREE) — "engenharia adequada ao volume e ao propósito, não ao 'e se um dia escalar'". Já está no teu tcc_notes como princípio; esse é mais um caso dele.
+
+4. Filtro de área como mitigação de uma limitação conhecida, habilitada pelo contexto. Vale registrar que o mesmo filtro (ADR-012) que ficava desligado na busca conversacional foi ligado na geração de documento, porque aqui o usuário declara a área — informação que a busca livre não tem. A limitação de retrieval da Semana 5 virou uma decisão de design consciente no contexto de documento, não um problema em aberto.

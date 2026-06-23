@@ -418,12 +418,15 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ## 📌 STATUS ATUAL DO PROJETO
 
-**Última atualização:** 22 de junho de 2026
-**Fase atual:** Semana 6 concluída — camada de geração (claude-sonnet-4-6) com grounding. Pipeline RAG completo ponta a ponta: pergunta em linguagem natural → retrieval híbrido (k=8, dedup) → geração fiel e ancorada, com abstenção honesta nos limites. Validado com 5 consultas.
-**Próxima ação:** Semana 7 — gerenciamento conversacional (múltiplos turnos, memória de contexto, extração de entidades jurídicas).
-**Coorientador :** Prof. Lennon (IFPA) — Engenharia de Software
+**Última atualização:** 23 de junho de 2026
+**Fase atual:** Semana 7 concluída — primeiro documento jurídico gerado (notificação extrajudicial). Pipeline completo: DadosCaso validado por Pydantic → RAG com filtro de área → fatos via LLM → requerimentos do usuário → template Jinja2 aprovado por advogado → documento com marcadores [A PREENCHER] nos campos opcionais ausentes. Refatoração base.py extraiu esqueleto reutilizável para os próximos 2 documentos. Validado com 2 casos (consumidor + trabalhista).
+
+**Desvio de cronograma:** Semana 7 original era gerenciamento conversacional — adiado para após os 3 documentos. Decisão: entregar os documentos primeiro (valor tangível para banca) e depois fechar o loop conversacional. Impacto: Semana 8 (PROCON + JEC) começa com base pronta em base.py.
+
+**Próxima ação:** Semana 8 — PROCON e petição JEC usando base.py; os dois documentos restantes do MVP.
+**Coorientador:** Prof. Lennon (IFPA) — Engenharia de Software
 **Orientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
-**Riscos ativos:** *[a ser preenchido conforme surgirem]\_
+**Riscos ativos:** *[a ser preenchido conforme surgirem]*
 
 ### Setup de Desenvolvimento
 
@@ -608,6 +611,18 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
 - **Consequência / limitações conhecidas:**
   - Fidelidade ao texto da lei ≠ completude jurídica: o sistema pode gerar resposta fiel mas juridicamente incompleta quando a interpretação depende de súmulas/jurisprudência ausentes do corpus (ex: pedido de demissão vs demissão sem justa causa — Súmula 261 TST). Trabalho futuro: incorporar súmulas.
   - Vazamento sutil de conhecimento próprio na abstenção exige vigilância contínua no prompt, especialmente em detalhes de cálculo.
+
+### [ADR-014] — 23 de junho de 2026 — Arquitetura da camada de documentos
+
+- **Contexto:** Semana 7 — implementação do primeiro documento (notificação extrajudicial) e projeto do esqueleto reutilizável para os dois restantes (PROCON, JEC).
+- **Decisões:**
+  1. **DadosCaso com obrigatórios/opcionais explícitos:** campos obrigatórios (nome, CPF, requerimentos, área) recusados por Pydantic se ausentes; campos opcionais de qualificação (nacionalidade, estado civil, profissão, endereço do notificado) rendem marcador `[A PREENCHER: ...]` no documento via filtro Jinja2 — nunca buraco nem "None".
+  2. **Requerimentos definidos pelo usuário, não pelo LLM:** `DadosCaso.requerimentos: list[str]` — cada item vira uma alínea (a, b, c...). O LLM redige apenas os FATOS; o PEDIDO é voz do usuário. Consequência fixa no template (texto imutável sobre medidas judiciais).
+  3. **Filtro de área ativado para geração:** `search_hybrid(..., area=dados.area)` — o parâmetro já existia no retrieval (ADR-012), desligado por padrão. Na geração de documento é obrigatoriamente ligado com a área declarada pelo usuário (`Literal['consumidor', 'trabalho']`). Sistema recusa gerar com fundamento da área errada: chunks vazios → `NotificacaoError`.
+  4. **base.py com funções soltas, não classe base:** `buscar_fundamento`, `redigir_fatos` (parametrizado com `tipo_documento`), `validar_campos_base` (retorna lista, cada doc levanta seu erro), `criar_jinja_env`, `filtro_preencher`, `dias_extenso`, `formatar_data`. Três módulos de documento importam daqui o que precisam. Classe base foi descartada: as diferenças entre documentos são de dados (template, campos do render, validação extra), não de comportamento — herança traria cerimônia sem ganho real.
+- **Justificativa:** Regra anti-alucinação central do domínio jurídico: LLM nunca preenche nome, CPF/CNPJ ou valor — esses vêm exclusivamente do formulário. Filtro de área elimina o risco observado na Semana 6 (query de consumo puxando CLT). Funções soltas são testáveis isoladas e extensíveis sem herança.
+- **Validação (Semana 7):** caso consumidor (internet/CDC) e caso trabalhista (demissão/CLT+FGTS) — fundamentos corretos em ambos. Marcadores `[A PREENCHER]` renderizados corretamente nos campos ausentes do notificado. Refatoração base.py confirmada sem regressão de output.
+- **Consequência:** PROCON e JEC herdam o fluxo de base.py com custo de implementação reduzido — cada um precisa escrever apenas: schema próprio, template, validação específica, função `gerar_*`. Gerenciamento conversacional (Semana 7 original) adiado para Semana 9.
 
 ---
 

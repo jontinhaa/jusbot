@@ -33,7 +33,12 @@
       "Bash(pip list *)",
       "Bash(pip install *)",
       "Bash(ruff check *)",
-      "Bash(.venv/Scripts/ruff check *)"
+      "Bash(.venv/Scripts/ruff check *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(pip show *)",
+      "Bash(pip3 show *)",
+      "Bash(/c/Users/jhona/AppData/Local/pypoetry/Cache/virtualenvs/jusbot-backend-9NJ9C-Us-py3.14/Scripts/python.exe -m src.documents.notificacao)",
+      "Bash(/c/Users/jhona/AppData/Local/pypoetry/Cache/virtualenvs/jusbot-backend-9NJ9C-Us-py3.14/Scripts/python.exe -c ' *)"
     ]
   }
 }

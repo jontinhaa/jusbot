@@ -1,0 +1,92 @@
+{#
+  RASCUNHO DE NOTIFICAÇÃO EXTRAJUDICIAL — JusBot
+  ------------------------------------------------
+  Este arquivo é um RASCUNHO gerado automaticamente para fins informativos.
+  O documento produzido NÃO foi revisado por profissional do direito.
+  Deve obrigatoriamente ser validado por advogado ou defensor público
+  antes de qualquer uso real, protocolo ou envio ao notificado.
+#}
+================================================================================
+                          NOTIFICAÇÃO EXTRAJUDICIAL
+================================================================================
+
+NOTIFICADO:  {{ notificado_nome }},
+             {{ notificado_nacionalidade | preencher("nacionalidade do notificado") }},
+             {{ notificado_estado_civil | preencher("estado civil do notificado") }},
+             {{ notificado_profissao | preencher("profissão do notificado") }},
+             {{ notificado_qualificacao | preencher("qualificação/papel do notificado") }},
+             inscrito(a) no CPF/CNPJ sob nº {{ notificado_cpf_cnpj | preencher("CPF/CNPJ do notificado") }},
+             residente/sediado(a) em {{ notificado_endereco | preencher("endereço completo do notificado") }}.
+
+ASSUNTO:     {{ assunto }}
+
+NOTIFICANTE: {{ notificante_nome }},
+             {{ notificante_nacionalidade | preencher("nacionalidade do notificante") }},
+             {{ notificante_estado_civil | preencher("estado civil do notificante") }},
+             {{ notificante_profissao | preencher("profissão do notificante") }},
+             {{ notificante_qualificacao }},
+             portador(a) do CPF nº {{ notificante_cpf }},
+             residente em {{ notificante_endereco | preencher("endereço completo do notificante") }}.
+
+--------------------------------------------------------------------------------
+
+Vem, mui respeitosamente, o(a) NOTIFICANTE, por intermédio da presente
+NOTIFICAÇÃO EXTRAJUDICIAL, expor os fatos a seguir narrados e formular os
+requerimentos ao final indicados, nos termos da legislação vigente:
+
+--------------------------------------------------------------------------------
+1. DOS FATOS
+--------------------------------------------------------------------------------
+
+{{ fatos }}
+
+--------------------------------------------------------------------------------
+2. DO FUNDAMENTO LEGAL OU CONTRATUAL
+--------------------------------------------------------------------------------
+
+Os direitos do(a) NOTIFICANTE encontram amparo nos seguintes dispositivos:
+
+{% for d in fundamento_legal %}
+• {{ d.endereco }}:
+  "{{ d.texto }}"
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+
+--------------------------------------------------------------------------------
+3. DO REQUERIMENTO E DO PRAZO
+--------------------------------------------------------------------------------
+
+Ante o exposto, requer o(a) NOTIFICANTE que o(a) NOTIFICADO(A), no prazo de
+{{ prazo_dias }} ({{ prazo_dias_extenso }}) dias úteis, contados do recebimento
+desta notificação:
+
+{% set letras = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'] %}
+{% for req in requerimentos %}
+{{ letras[loop.index0] }}) {{ req }};
+{% endfor %}
+
+O não atendimento ao presente requerimento no prazo acima estipulado ensejará
+o ajuizamento das medidas judiciais e administrativas cabíveis, incluindo ação
+de indenização por perdas e danos materiais e morais, com o requerimento de
+condenação ao pagamento das custas processuais e honorários advocatícios, tudo
+nos termos da legislação em vigor.
+
+================================================================================
+
+{{ cidade }}, {{ data_formatada }}.
+
+
+_____________________________________________
+{{ notificante_nome }}
+{{ notificante_qualificacao }}
+CPF: {{ notificante_cpf }}
+
+
+================================================================================
+AVISO LEGAL: Este documento é um rascunho gerado automaticamente pelo sistema
+JusBot para fins informativos e educativos. Não constitui aconselhamento
+jurídico nem substitui a orientação de advogado. Valide este documento com um
+advogado ou defensor público antes de utilizá-lo.
+================================================================================

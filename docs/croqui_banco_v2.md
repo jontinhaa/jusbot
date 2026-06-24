@@ -93,10 +93,10 @@ Cada unidade jurídica recuperável. Tabela consultada pelo RAG.
 |-------|------|------------|
 | `id` | `SERIAL` | `PRIMARY KEY` |
 | `document_id` | `INTEGER` | `NOT NULL REFERENCES documents(id) ON DELETE CASCADE` |
-| `parent_chunk_id` | `INTEGER` | `NULL REFERENCES chunks(id) ON DELETE CASCADE` — **novo (v2)**, substitui `texto_pai` (ADR-006) |
-| `tipo` | `VARCHAR(20)` | `NOT NULL CHECK (tipo IN ('artigo','paragrafo','inciso','alinea','item'))` (ADR-009) |
+| `parent_chunk_id` | `INTEGER` | `NULL REFERENCES chunks(id) ON DELETE CASCADE` — **novo (v2)**, substitui `texto_pai` (ADR-007) |
+| `tipo` | `VARCHAR(20)` | `NOT NULL CHECK (tipo IN ('artigo','paragrafo','inciso','alinea','item'))` (ADR-010) |
 | `numero` | `VARCHAR(20)` | `NOT NULL` — parágrafo único = `numero='único'` |
-| `caminho_hierarquico` | `JSONB` | `NULL` — caminho estrutural; `NULL` p/ docs planos (ADR-008) |
+| `caminho_hierarquico` | `JSONB` | `NULL` — caminho estrutural; `NULL` p/ docs planos (ADR-009) |
 | `texto` | `TEXT` | `NOT NULL` — conteúdo limpo de HTML. Para `tipo='artigo'`, guarda o **caput** |
 | `tamanho_chunk` | `INTEGER` | `GENERATED ALWAYS AS (length(texto)) STORED` — **novo (v2)**, coluna calculada |
 | `posicao_ordem` | `INTEGER` | `NOT NULL` — ordem linear dentro do documento |
@@ -142,10 +142,10 @@ Documentado para consistência do parser (recomendação da revisão).
 
 | # | Mudança | Origem | ADR |
 |---|---------|--------|-----|
-| 1 | `texto_pai` removido; `parent_chunk_id` (FK self-ref) adicionado. Contexto do pai reconstruído via JOIN/CTE recursiva, **sem view materializada** | Revisão (Pergunta 3) + decisão própria | ADR-006 |
-| 2 | `tipo_norma` e `area_juridica` recebem `CHECK` em vez de migrarem para `ENUM` | Decisão própria (divergência fundamentada) | ADR-007 |
-| 3 | Hierarquia confirmada como JSONB; LTREE registrado como trabalho futuro | Revisão (Pergunta 1) | ADR-008 |
-| 4 | `tipo` ganha o valor `item` e o `CHECK` é ancorado na LC 95/1998; `caput` modelado como texto do chunk-artigo | Decisão própria | ADR-009 |
+| 1 | `texto_pai` removido; `parent_chunk_id` (FK self-ref) adicionado. Contexto do pai reconstruído via JOIN/CTE recursiva, **sem view materializada** | Revisão (Pergunta 3) + decisão própria | ADR-007 |
+| 2 | `tipo_norma` e `area_juridica` recebem `CHECK` em vez de migrarem para `ENUM` | Decisão própria (divergência fundamentada) | ADR-008 |
+| 3 | Hierarquia confirmada como JSONB; LTREE registrado como trabalho futuro | Revisão (Pergunta 1) | ADR-009 |
+| 4 | `tipo` ganha o valor `item` e o `CHECK` é ancorado na LC 95/1998; `caput` modelado como texto do chunk-artigo | Decisão própria | ADR-010 |
 | 5 | `data_vigencia` e `data_revogacao` adicionados a `documents` | Revisão | — (preparo p/ versionamento) |
 | 6 | `tamanho_chunk` adicionado como coluna **GENERATED** (não populada pelo parser) | Revisão + refino próprio | — |
 | 7 | Índice composto `(document_id, posicao_ordem)` | Revisão | — |
@@ -153,7 +153,7 @@ Documentado para consistência do parser (recomendação da revisão).
 
 **Decisões mantidas do v1** (sem alteração): `numero` como VARCHAR, `embedding` nullable, índice HNSW (vs. ivfflat), busca híbrida `pgvector`+`pg_trgm`, `hash_html_bruto` para reprodutibilidade.
 
-**Recusado com justificativa (ver ADRs):** view materializada para `texto_pai` (ADR-006), `ENUM` (ADR-007). **Adiado para trabalhos futuros:** tabela `fontes` normalizada e versionamento temporal por chunk (`vigencia_inicio`/`fim` em `chunks`).
+**Recusado com justificativa (ver ADRs):** view materializada para `texto_pai` (ADR-007), `ENUM` (ADR-008). **Adiado para trabalhos futuros:** tabela `fontes` normalizada e versionamento temporal por chunk (`vigencia_inicio`/`fim` em `chunks`).
 
 ---
 
@@ -161,7 +161,7 @@ Documentado para consistência do parser (recomendação da revisão).
 
 1. Migrations do Alembic a partir deste schema.
 2. Parser HTML que popula as tabelas (Bloco 3, Semana 3).
-3. ADRs 006–009 registrados no `CLAUDE.md` / `docs/adr/`.
+3. ADRs 007–010 registrados no `CLAUDE.md` / `docs/adr/`.
 
 ---
 

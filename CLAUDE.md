@@ -12,7 +12,7 @@
 **Curso:** Engenharia de Software
 **Autor:** Jhonatan
 **Coautor:** Diogo Caldeira
-**Prazo de entrega:** Final de julho de 2026 (~13 semanas a partir de abril/2026)
+**Prazo de entrega:** Entrega à banca: 12/08/2026 · Defesa: 28/08/2026 · Reta final de 7 semanas (a partir de 24/06/2026)
 **Data de início:** Abril de 2026
 
 ---
@@ -50,8 +50,7 @@ Desenvolver um sistema inteligente que utiliza Recuperação Aumentada por Gera�
 1. Construir um corpus jurídico brasileiro estruturado cobrindo CDC, CLT e legislação correlata
 2. Implementar arquitetura RAG adaptada para raciocínio jurídico em português brasileiro
 3. Desenvolver pipeline de geração de documentos jurídicos válidos (PROCON, JEC, notificação extrajudicial)
-4. Avaliar empiricamente a qualidade do sistema com dataset de 50 casos reais
-5. Validar usabilidade com usuários reais do público-alvo via SUS (System Usability Scale)
+4. Avaliar empiricamente a qualidade do sistema com dataset de 15–20 casos reais anonimizados
 
 ---
 
@@ -84,6 +83,8 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 
 ### Camada 2 — Conversação e Extração de Contexto
 
+> **CORTADO DO MVP** — a camada conversacional/multi-turno foi removida do escopo; a interface é single-turn. `LangChain memory` não é utilizada. Mantido como registro histórico; ver ADR-015. **Trabalho futuro.**
+
 - Gerenciamento de estado com LangChain memory
 - NER jurídico (entidades: partes, valores, datas, tipos de contrato)
 - Classificação do domínio jurídico (consumidor/trabalhista/outros)
@@ -107,8 +108,7 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 
 ### Camada 5 — Interface e Entrega
 
-- Web app responsivo (PWA) mobile-first
-- Chat interface com indicadores de progresso
+- Interface web enxuta em HTML puro, single-turn, servida pelo FastAPI, sem framework de frontend (decisão de escopo)
 - Visualização dos direitos identificados
 - Download dos documentos gerados
 - Disclaimer legal visível
@@ -125,7 +125,6 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 ### IA e RAG
 
 - **LLM:** claude-sonnet-4-6 via API Anthropic (claude-3-5-sonnet retirado fev/2026)
-- **LangChain:** orquestração do pipeline RAG
 - **PostgreSQL + pgvector:** banco vetorial persistente
 - **sentence-transformers:** embeddings (`intfloat/multilingual-e5-large`)
 - **rank-bm25:** busca lexical híbrida
@@ -139,10 +138,7 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 
 ### Frontend
 
-- **React 18 + TypeScript**
-- **Vite** (build tool)
-- **TailwindCSS** (estilização)
-- **React PDF** (visualização de documentos)
+- **HTML puro servido pelo FastAPI (sem build step)**
 
 ### Geração de Documentos
 
@@ -200,9 +196,9 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 **Corpus jurídico:**
 
 - CDC (Lei 8.078/1990)
-- CLT (arts. relevantes para escopo trabalhista)
-- Lei do Inquilinato (Lei 8.245/1991) — subset
-- Jurisprudências selecionadas do STJ via LexML
+- CLT (subset)
+- FGTS (Lei 8.036/1990)
+- Lei 4.090/1962 e Lei 4.749/1965 (13º salário)
 
 **Funcionalidades:**
 
@@ -213,8 +209,7 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 
 **Avaliação:**
 
-- Dataset de 50 casos reais anonimizados
-- SUS (System Usability Scale) com 8–10 usuários
+- Dataset de 15–20 casos reais anonimizados
 - Validação jurídica por professor de Direito
 
 ### ❌ FORA do escopo (Trabalhos Futuros)
@@ -227,10 +222,15 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 - Scrapers de jurisprudência automatizados em produção
 - Modo de acessibilidade completo (WCAG AAA)
 - Internacionalização
+- Avaliação de usabilidade via SUS (System Usability Scale) com usuários reais
+- Ingestão de jurisprudências do STJ via LexML
+- Lei do Inquilinato (Lei 8.245/1991)
 
 ---
 
 ## 📅 CRONOGRAMA (13 SEMANAS)
+
+> **(SUPERSEDED — cronograma vigente em cronograma_jusbot.md)**
 
 **Capacidade do autor:** 20h/semana padrão, 30h/semana nas últimas 3 semanas (~290h totais)
 
@@ -248,6 +248,18 @@ O sistema é dividido em 5 camadas com responsabilidades bem definidas:
 | 11     | Jul          | Avaliação empírica + SUS                               | Métricas coletadas                                     |
 | 12     | Jul          | Análise + escrita (caps 3, 4, 5)                       | TCC ~70% escrito                                       |
 | 13     | Fim de Jul   | Caps 1, 2, 6 + apresentação                            | Entrega final                                          |
+
+**Reta final vigente (a partir de 24/06/2026 — entrega 12/08/2026):**
+
+| Semana | Datas | Foco |
+| ------ | ----- | ---- |
+| 1 | 24/06–30/06 | Documento PROCON |
+| 2 | 01/07–07/07 | Documento JEC + validação jurídica dos 3 docs |
+| 3 | 08/07–14/07 | Interface HTML puro (POST /pergunta + geração doc) |
+| 4 | 15/07–21/07 | Avaliação técnica de retrieval (puro vs enriquecido) |
+| 5–6 | 22/07–04/08 | Escrita (metodologia, implementação, resultados) |
+| 7 | 05/08–11/08 | Fechamento + ABNT. Entrega 12/08. |
+| — | 12/08–28/08 | Código congelado, slides e defesa. |
 
 ---
 
@@ -302,7 +314,7 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ### Métricas técnicas
 
-- **Precisão de identificação do direito violado** (target: ≥80% no dataset de 50 casos)
+- **Precisão de identificação do direito violado** (target: ≥80% no dataset de 15–20 casos)
 - **Qualidade do retrieval** (Recall@5 no corpus jurídico)
 - **Taxa de citação correta de artigos** (anti-alucinação)
 - **Tempo médio de resposta** (target: <15s por interação)
@@ -310,9 +322,7 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ### Métricas de usabilidade
 
-- **SUS — System Usability Scale** com 8–10 usuários reais (target: ≥68, considerado "acima da média")
-- **Taxa de conclusão de tarefa** (usuário consegue gerar documento sem ajuda)
-- **Tempo médio para gerar documento**
+> Avaliação de usabilidade (SUS) movida para Trabalhos Futuros.
 
 ### Validação qualitativa
 
@@ -418,14 +428,10 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ## 📌 STATUS ATUAL DO PROJETO
 
-**Última atualização:** 23 de junho de 2026
-**Fase atual:** Semana 7 concluída — primeiro documento jurídico gerado (notificação extrajudicial). Pipeline completo: DadosCaso validado por Pydantic → RAG com filtro de área → fatos via LLM → requerimentos do usuário → template Jinja2 aprovado por advogado → documento com marcadores [A PREENCHER] nos campos opcionais ausentes. Refatoração base.py extraiu esqueleto reutilizável para os próximos 2 documentos. Validado com 2 casos (consumidor + trabalhista).
+**Última atualização:** 24/06/2026. Fase: reta final, Semana 1 (24/06–30/06). Camada 4 (geração de documentos) em andamento. base.py fechado (funções soltas, ADR-014). Documento 1 — Notificação extrajudicial: pronto no código, validado em 2 casos (consumidor + trabalho); PENDÊNCIA ABERTA = validação do advogado na peça renderizada (não só no template). Próxima ação: Documento 2 — Reclamação PROCON (modelo do advogado recebido) → schema próprio + template + gerar_procon sobre base.py. Em seguida: Documento 3 — Petição JEC.
 
-**Desvio de cronograma:** Semana 7 original era gerenciamento conversacional — adiado para após os 3 documentos. Decisão: entregar os documentos primeiro (valor tangível para banca) e depois fechar o loop conversacional. Impacto: Semana 8 (PROCON + JEC) começa com base pronta em base.py.
-
-**Próxima ação:** Semana 8 — PROCON e petição JEC usando base.py; os dois documentos restantes do MVP.
-**Coorientador:** Prof. Lennon (IFPA) — Engenharia de Software
-**Orientador:** Prof. Tarcísio Lemos (IFPA) — Banco de dados, arquitetura, padrões de projeto
+**Orientador:** Prof. __________
+**Coorientador:** Prof. __________
 **Riscos ativos:** *[a ser preenchido conforme surgirem]*
 
 ### Setup de Desenvolvimento
@@ -623,6 +629,17 @@ Registre aqui qualquer decisão arquitetural ou de escopo tomada durante o proje
 - **Justificativa:** Regra anti-alucinação central do domínio jurídico: LLM nunca preenche nome, CPF/CNPJ ou valor — esses vêm exclusivamente do formulário. Filtro de área elimina o risco observado na Semana 6 (query de consumo puxando CLT). Funções soltas são testáveis isoladas e extensíveis sem herança.
 - **Validação (Semana 7):** caso consumidor (internet/CDC) e caso trabalhista (demissão/CLT+FGTS) — fundamentos corretos em ambos. Marcadores `[A PREENCHER]` renderizados corretamente nos campos ausentes do notificado. Refatoração base.py confirmada sem regressão de output.
 - **Consequência:** PROCON e JEC herdam o fluxo de base.py com custo de implementação reduzido — cada um precisa escrever apenas: schema próprio, template, validação específica, função `gerar_*`. Gerenciamento conversacional (Semana 7 original) adiado para Semana 9.
+
+### [ADR-015] — 24 de junho de 2026 — Remoção do LangChain: pipeline RAG hand-rolled
+
+- **Contexto:** O LangChain foi previsto na proposta (abril/2026) como orquestrador do pipeline RAG e da camada conversacional. A camada conversacional foi cortada do MVP (interface single-turn) e o pipeline de RAG foi implementado sem LangChain: embedding via `sentence-transformers`, retrieval via SQL (`pgvector` + `pg_trgm`), fusão RRF em código próprio, reconstrução de contexto via CTE recursiva (ADR-007) e geração via SDK oficial `anthropic` (ADR-013). Verificação: zero imports de `langchain` no código; o pacote constava apenas como dependência declarada.
+- **Decisão:** Remover `langchain` (e pacotes `langchain-*`) do `pyproject.toml`/`poetry.lock`. Manter o pipeline hand-rolled.
+- **Justificativa:**
+  - O pipeline é uma sequência fixa e curta de passos bem compreendidos; LangChain agrega valor em encadeamento dinâmico de componentes e fluxos agênticos, ausentes aqui.
+  - Domínio jurídico com anti-alucinação (ADR-013) exige controle explícito e auditável do que entra no prompt; uma camada de abstração esconderia justamente o que precisa ser inspecionável.
+  - Coerente com a filosofia transversal do projeto (recusa de ENUM, de view materializada, de LTREE): engenharia adequada ao escopo, não ao "e se escalar".
+  - Reduz superfície de dependências e o risco de quebra de API entre versões (reprodutibilidade na avaliação empírica).
+- **Consequência:** A descrição da stack na proposta de abril (LangChain) fica reconciliada aqui — o delta proposta→implementação passa a documentado, não silencioso. Se um fluxo conversacional multi-turno for retomado como trabalho futuro, a orquestração será reavaliada na ocasião.
 
 ---
 

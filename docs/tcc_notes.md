@@ -4,7 +4,7 @@
 >
 > **Projeto:** JusBot — sistema RAG (Retrieval-Augmented Generation) para acesso à justiça em direito do consumidor e trabalhista.
 > **Autores:** Jhonatan + Diogo Caldeira. **Orientação:** Prof. Lennon (principal), Prof. Tarcísio Lemos (coorientador, banco de dados).
-> **Stack:** Python/FastAPI, LangChain, Claude 3.5 Sonnet, PostgreSQL 16 + pgvector, multilingual-e5-large, Alembic, Docker Compose, Poetry. **Repo:** github.com/jontinhaa/jusbot
+> **Stack:** Python/FastAPI, claude-sonnet-4-6, PostgreSQL 16 + pgvector, multilingual-e5-large, Alembic, Docker Compose, Poetry. **Repo:** github.com/jontinhaa/jusbot
 > **Atualizado:** junho/2026 (fim da Semana 4).
 
 ---
@@ -256,26 +256,6 @@ A consulta sobre diferenciação de preço por meio de pagamento não recuperou 
 ---
 
 _Documento vivo — acrescentar marcos, decisões e bugs ao longo das próximas semanas. Na semana de escrita do TCC, consolidar daqui para os capítulos de metodologia e resultados._
-
-## Achados da Semana 5 (motor de retrieval)
-
-### Achado 1 — A busca híbrida recupera o que nenhum método isolado recupera
-
-Na consulta "fui demitido sem justa causa, tenho direito a quê?", o dispositivo do FGTS sobre a multa de 40% na demissão sem justa causa (Lei 8.036, Art. 18, §1º) aparecia em 8º lugar na busca vetorial e em 6º na lexical — fora do top-5 de ambas, isoladamente. A fusão RRF somou as duas contribuições e o promoveu ao top-5 final. Como a multa de 40% é um dos principais direitos do demitido, o resultado mostra que a busca híbrida captura dispositivos relevantes situados na fronteira de ambos os métodos, que cada busca isolada deixaria de fora. É a justificativa empírica, no próprio corpus, para a decisão de busca híbrida (alinhada à literatura de RAG jurídico, LegalBench-RAG). Vai para o capítulo de resultados.
-
-### Achado 2 — Limitação do RRF: erros correlacionados são amplificados, não filtrados
-
-O RRF filtra falsos-positivos que aparecem em apenas uma das listas (ex.: na Etapa 1, o CDC Art. 39 entrou só na busca lexical por coincidência da string "sem justa causa" e foi descartado da fusão). Porém, quando os dois métodos erram de forma correlacionada — atraídos pelas mesmas palavras enganosas —, a fusão reforça o erro em vez de eliminá-lo. Exemplo: na consulta sobre preço diferente no cartão/dinheiro, o Art. 20-E da Lei 8.036 (tarifa bancária do FGTS) chegou a 1º lugar porque "cobrança/tarifa/dinheiro" casou tanto na busca vetorial quanto na lexical, apesar de ser juridicamente irrelevante. Conclusão: a fusão por concordância pressupõe que os métodos errem de forma independente; sob erro correlacionado, a premissa quebra. Mitigações: filtro opcional por área jurídica (já implementado) e a própria camada de geração (o LLM pode descartar contexto irrelevante). Vai para o capítulo de limitações; revisitar na avaliação empírica da Semana 11 com métricas formais.
-
-### Achado 3 — Lacuna de fonte do Planalto justifica empiricamente o versionamento de corpus
-
-A consulta sobre diferenciação de preço por meio de pagamento não recuperou o dispositivo pertinente (CDC Art. 39-A, incluído pela Lei 13.455/2017) porque ele não existe na fonte ingerida: a versão compilada do Planalto (l8078compilado.htm, baixada em 09/06/2026) não incorporou aquela emenda. Não é falha do parser nem do retrieval — é defasagem seletiva da fonte governamental. O achado evidencia que fontes de texto compilado podem apresentar lacunas na incorporação de emendas, o que reforça a necessidade de (a) validação de atualidade do corpus e (b) versionamento, ambos apontados como trabalhos futuros. A lacuna, portanto, valida a decisão de design já registrada (versionamento por substituição no MVP, com data_vigencia/data_revogacao preparando o futuro). Documentada como limitação de corpus, não corrigida (re-ingerir a mesma fonte não a resolveria, e costurar fonte alternativa enfraqueceria a reprodutibilidade por hash_html_bruto).
-
-### Limites de escopo confirmados (não são falhas)
-
-- **Prazo de saque do FGTS (Q3):** a Lei 8.036 estabelece _quando_ se pode sacar (Art. 20, I — despedida sem justa causa), não _até quando_. O prazo de 30 dias vem da Resolução CCFGTS 460/2004, norma infralegal fora do escopo das 5 leis. O sistema recuperou corretamente as hipóteses de saque que a lei contém — não sabe o que a lei não diz. Comportamento esperado.
-
----
 
 ## 14. Achados da Semana 6 (camada de geração)
 

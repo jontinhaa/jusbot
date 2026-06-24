@@ -6,7 +6,7 @@ O LLM nunca preenche nome, CPF/CNPJ ou valor. Esses vêm do DadosCaso ou ficam c
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Literal
 
@@ -91,3 +91,14 @@ class NotificacaoResult:
     fatos: str
     requerimentos: list[str]
     chunks: list[ContextualChunk]
+
+
+@dataclass
+class ProconResult:
+    """Resultado da geração da reclamação ao PROCON."""
+
+    documento: str
+    fatos: str
+    requerimentos: list[str]
+    chunks: list[ContextualChunk]
+    avisos: list[str] = field(default_factory=list)

@@ -1,0 +1,103 @@
+{#
+  RASCUNHO DE RECLAMAÇÃO AO PROCON — JusBot
+  ------------------------------------------
+  Este arquivo é um RASCUNHO gerado automaticamente para fins informativos.
+  O documento produzido NÃO foi revisado por profissional do direito.
+  Deve obrigatoriamente ser validado por advogado ou defensor público
+  antes de qualquer uso real ou protocolo junto ao PROCON.
+#}
+================================================================================
+                         RECLAMAÇÃO AO PROCON
+================================================================================
+
+ILUSTRÍSSIMO SENHOR DIRETOR DA COORDENADORIA DE PROTEÇÃO E DEFESA DO
+CONSUMIDOR – PROCON DE {{ procon_cidade }}/{{ procon_uf }}
+
+--------------------------------------------------------------------------------
+I. QUALIFICAÇÃO DO REQUERENTE (CONSUMIDOR)
+--------------------------------------------------------------------------------
+
+Nome:          {{ nome_requerente }}
+Qualificação:  {{ requerente_qualificacao | preencher("qualificação: nacionalidade, estado civil, profissão") }}
+RG:            {{ rg_requerente | preencher("RG") }}
+CPF:           {{ cpf_requerente }}
+Endereço:      {{ endereco_requerente | preencher("endereço") }}
+Telefone:      {{ telefone_requerente | preencher("telefone") }}
+E-mail:        {{ email_requerente | preencher("e-mail") }}
+
+--------------------------------------------------------------------------------
+II. QUALIFICAÇÃO DA REQUERIDA (FORNECEDOR)
+--------------------------------------------------------------------------------
+
+Nome/Razão Social:  {{ requerida_nome }}
+CNPJ:               {{ requerida_cnpj | preencher("CNPJ") }}
+Endereço comercial: {{ requerida_endereco | preencher("endereço comercial") }}
+Contato:            {{ requerida_contato | preencher("contato") }}
+
+--------------------------------------------------------------------------------
+III. DOS FATOS
+--------------------------------------------------------------------------------
+
+No dia {{ data_fato_formatada | preencher("data do fato") }}, o Requerente obteve junto à
+Requerida o seguinte: {{ produto_servico }}, pelo valor de {{ valor | preencher("valor") }},
+pago por meio de {{ forma_pagamento | preencher("forma de pagamento") }}.
+
+{{ fatos }}
+
+{% if contato_previo_datas or contato_previo_protocolos %}
+O Requerente tentou solucionar o impasse diretamente com a Requerida{% if contato_previo_datas %} em {{ contato_previo_datas | join(", ") }}{% if contato_previo_protocolos %}, sob o(s) protocolo(s) nº {{ contato_previo_protocolos | join(", ") }}{% endif %}{% elif contato_previo_protocolos %} sob o(s) protocolo(s) nº {{ contato_previo_protocolos | join(", ") }}{% endif %}, não obtendo êxito na resolução do problema.
+{% else %}
+O Requerente recorre a este órgão para a solução do conflito de consumo.
+{% endif %}
+
+--------------------------------------------------------------------------------
+IV. DOS FUNDAMENTOS JURÍDICOS
+--------------------------------------------------------------------------------
+
+A presente reclamação encontra amparo na Lei nº 8.078/1990 (Código de Defesa do
+Consumidor), restando configurada a violação aos seguintes dispositivos:
+
+{% for f in fundamentos %}
+• {{ f.endereco }}:
+  "{{ f.texto }}"
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+
+--------------------------------------------------------------------------------
+V. DOS PEDIDOS
+--------------------------------------------------------------------------------
+
+Diante do exposto, o Requerente formaliza a presente reclamação administrativa
+e solicita a este órgão:
+
+{# a) e b) são as duas providências fixas hard-coded abaixo; requerimentos começam em letras[0+2]=c.
+   Se uma 3ª providência fixa for adicionada, o offset muda de +2 para +3. #}
+{% set letras = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] %}
+a) recebimento da presente reclamação e processamento perante este órgão, com a
+   devida autuação;
+b) notificação da Requerida para apresentar defesa ou comparecer à audiência de
+   conciliação;
+{% for req in requerimentos %}
+{{ letras[loop.index0 + 2] }}) {{ req }};
+{% endfor %}
+
+Nestes termos, pede deferimento.
+
+================================================================================
+
+{{ procon_cidade }}/{{ procon_uf }}, {{ data_formatada }}.
+
+
+_____________________________________________
+{{ nome_requerente }}
+CPF: {{ cpf_requerente }}
+
+
+================================================================================
+AVISO LEGAL: Este documento é um rascunho gerado automaticamente pelo sistema
+JusBot para fins informativos e educativos. Não constitui aconselhamento
+jurídico nem substitui a orientação de advogado. Valide este documento com um
+advogado, defensor público ou diretamente no balcão do PROCON antes de protocolar.
+================================================================================

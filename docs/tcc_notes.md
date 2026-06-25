@@ -145,6 +145,8 @@ Apresentar como decisões conscientes de escopo fortalece a maturidade do trabal
 
 **Embedding de texto puro vs. enriquecido com contexto hierárquico.** Hoje o baseline embedda só `passage: {texto}`. A alternativa é enriquecer com o caminho/contexto do pai (ex.: `passage: Art. 58-A §1º {texto}`), o que pode melhorar o recall de chunks órfãos mas pode diluir precisão. Como a montagem do texto está isolada em `build_embedding_text()`, dá para testar as duas versões na avaliação empírica e **reportar qual venceu com métricas formais** — transformando uma dúvida de implementação em contribuição mensurável do TCC.
 
+Candidata a experimento da Semana 4: filtro de pertinência binário (atual) vs. pointwise LLM scoring + query rewriting, com métrica formal sobre o dataset. Ressalva anti-alucinação: pontuar por aderência ao texto do dispositivo, não por mérito jurídico próprio do modelo.
+
 ---
 
 ## 8. Composição final do corpus (números para a defesa)
@@ -256,6 +258,23 @@ A consulta sobre diferenciação de preço por meio de pagamento não recuperou 
 ---
 
 _Documento vivo — acrescentar marcos, decisões e bugs ao longo das próximas semanas. Na semana de escrita do TCC, consolidar daqui para os capítulos de metodologia e resultados._
+
+## 15. Candidata a experimento — Semana de avaliação empírica
+
+### Filtro de pertinência: binário vs. pointwise scoring + query rewriting
+
+**Contexto:** o filtro atual (`filtrar_pertinencia` em `base.py`) é binário — o LLM recebe a lista de dispositivos recuperados e responde com índices (inclui/exclui). A saída é fechada ao conjunto de entrada, impossível introduzir artigo novo. O filtro resolve o problema de ruído jurídico (ex.: vício de serviço num caso de produto), mas não distingue graus de relevância entre os mantidos.
+
+**Experimento proposto (comparar duas variantes sobre o dataset de avaliação):**
+1. **Baseline — filtro binário atual:** LLM escolhe índices (inclui/exclui). Sem score.
+2. **Variante A — pointwise LLM scoring:** LLM atribui score de 0–10 para cada dispositivo, definindo o threshold de corte. Permite ranquear os mantidos e calibrar "quanto da lista" entra.
+3. **Variante B — query rewriting antes do retrieval:** antes de chamar `buscar_fundamento`, reescrever a query do usuário em linguagem mais técnica/jurídica (ex.: "celular parou de ligar" → "vício oculto produto durável CDC"). Mede impacto no retrieval, não no filtro.
+
+**Métrica formal:** avaliar sobre o dataset de 15–20 casos anonimizados. Não usar mérito jurídico próprio do LLM como critério — isso reabre a alucinação pela porta dos fundos. A métrica é **aderência ao texto do dispositivo**: dado o relato, o dispositivo recuperado contém termos/conceitos que textualmente se aplicam? Validar contra gabarito do professor de Direito.
+
+**Ressalva anti-alucinação (crítica):** em pointwise scoring, a instrução ao LLM deve ser "pontue pela aderência do texto do dispositivo ao relato, não pelo que você sabe sobre direito do consumidor". Se o prompt pedir para o LLM julgar o mérito jurídico, ele pode pontuar alto um dispositivo que *ele acha* relevante mas que não está na base — e o gabarito seria construído sobre raciocínio próprio do modelo, não sobre texto da lei. O benchmark vira circular.
+
+**Por que vale como contribuição:** os três sistemas (retrieval puro, retrieval + filtro binário, retrieval + filtro pointwise) são comparáveis com a mesma métrica. O delta documenta empiricamente o ganho do filtro de pertinência — exatamente o tipo de ablation study que diferencia TCC de engenharia de TCC de pesquisa.
 
 ## 14. Achados da Semana 6 (camada de geração)
 

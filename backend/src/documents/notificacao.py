@@ -27,7 +27,9 @@ from .base import (
     buscar_fundamento,
     criar_jinja_env,
     dias_extenso,
+    filtrar_pertinencia,
     formatar_data,
+    montar_fundamento,
     redigir_fatos,
     validar_campos_base,
 )
@@ -85,6 +87,7 @@ def gerar_notificacao(
     """
     # Etapa 1 — RAG: recupera dispositivos da área declarada pelo usuário
     chunks = buscar_fundamento(session, emb_model, relato, k=k, area=dados.area)
+    chunks = filtrar_pertinencia(relato, chunks)
 
     # Etapa 2 — LLM redige apenas os fatos (ancorado no relato, nunca nos dados duros)
     fatos = redigir_fatos(relato)
@@ -120,7 +123,7 @@ def gerar_notificacao(
         # Conteúdo
         fatos=fatos,
         requerimentos=dados.requerimentos,
-        fundamento_legal=[{"endereco": c.endereco, "texto": c.texto} for c in chunks],
+        fundamento_legal=montar_fundamento(chunks),
     )
 
     return NotificacaoResult(

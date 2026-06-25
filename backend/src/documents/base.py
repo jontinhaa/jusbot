@@ -10,6 +10,7 @@ são de dados (template, campos do render, validação extra), não de comportam
 
 from __future__ import annotations
 
+import re
 from datetime import date as _date
 from pathlib import Path
 from typing import Any
@@ -112,6 +113,74 @@ def buscar_fundamento(
     return build_context(session, hybrid_items)
 
 
+# ─── Filtro de pertinência ───────────────────────────────────────────────────
+
+
+def filtrar_pertinencia(relato: str, chunks: list[ContextualChunk]) -> list[ContextualChunk]:
+    """Filtra os chunks recuperados pelo RAG para manter só os pertinentes ao relato.
+
+    O LLM recebe a lista numerada de dispositivos e retorna APENAS os índices
+    que se aplicam juridicamente ao relato. A saída é fechada ao conjunto de
+    entrada: impossível introduzir dispositivo não recuperado.
+
+    Fallback: se o parse falhar, vier vazio ou ocorrer exceção, retorna os
+    chunks originais sem filtrar (degrada ao comportamento sem filtro).
+    """
+    if not chunks:
+        return chunks
+
+    lista_numerada = "\n".join(f"[{i}] {c.endereco}: {c.texto}" for i, c in enumerate(chunks, 1))
+
+    system = (
+        "Você é um assistente jurídico do sistema JusBot. "
+        "Sua única tarefa é selecionar, de uma lista numerada de dispositivos legais, "
+        "quais se aplicam juridicamente ao relato do usuário.\n\n"
+        "REGRAS ABSOLUTAS:\n"
+        "1. Responda APENAS com os números dos dispositivos pertinentes, separados por vírgula. "
+        "Exemplo de resposta válida: 1,3,5\n"
+        "2. NÃO escreva texto de lei. NÃO invente dispositivos. NÃO explique.\n"
+        "3. Exclua dispositivos de área jurídica diferente do problema "
+        "(ex: dispositivo sobre vício de serviço num caso de vício de produto).\n"
+        "4. NA DÚVIDA sobre um dispositivo, INCLUA — preferimos manter um a mais "
+        "que descartar um pertinente.\n"
+        "5. Se absolutamente nenhum dispositivo for pertinente, responda com todos os números."
+    )
+
+    user_msg = (
+        f"Relato do usuário:\n{relato}\n\n" f"Dispositivos legais recuperados:\n{lista_numerada}"
+    )
+
+    try:
+        client = get_client()
+        response = client.messages.create(
+            model=_MODEL,
+            max_tokens=50,
+            system=system,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+        raw = response.content[0].text.strip()
+        indices = [int(x) for x in re.findall(r"\d+", raw)]
+        validos = [i for i in indices if 1 <= i <= len(chunks)]
+        if not validos:
+            print(
+                f"[filtrar_pertinencia] FALLBACK: índices vazios/inválidos "
+                f"(raw={raw!r}, chunks={len(chunks)})"
+            )
+            return chunks
+        vistos: set[int] = set()
+        resultado: list[ContextualChunk] = []
+        for i in validos:
+            if i not in vistos:
+                vistos.add(i)
+                resultado.append(chunks[i - 1])
+        return resultado
+    except Exception as exc:
+        print(
+            f"[filtrar_pertinencia] FALLBACK: exceção no filtro " f"({type(exc).__name__}: {exc})"
+        )
+        return chunks
+
+
 # ─── Geração de fatos via LLM ─────────────────────────────────────────────────
 
 
@@ -147,6 +216,66 @@ def redigir_fatos(
         messages=[{"role": "user", "content": f"Relato do usuário:\n{relato}"}],
     )
     return response.content[0].text.strip()
+
+
+# ─── Montagem de fundamentos para templates ──────────────────────────────────
+
+_TIPOS_FILHO: frozenset[str] = frozenset({"paragrafo", "inciso", "alinea", "item"})
+
+
+def montar_fundamento(chunks: list[ContextualChunk]) -> list[dict]:
+    """Constrói a lista de dicts de fundamentos que os templates iteram.
+
+    Quando o dispositivo recuperado é filho de um artigo (parágrafo, inciso,
+    alínea ou item), inclui o texto do caput-pai nos campos caput_*. Garante
+    que o documento não cite o §6º isolado sem o artigo que o rege.
+
+    Dedup por (documento, numero_do_artigo): se o artigo-pai já aparece como
+    chunk recuperado diretamente na lista, caput_* = None — evita repetição.
+    Usa (documento, numero) em vez de comparar enderecos porque o endereco do
+    artigo recuperado pode incluir Título/Capítulo ("CDC, Cap. IV, Art. 18"),
+    enquanto o caput_endereco é sempre a forma curta ("CDC, Art. 18").
+
+    Formato de cada item:
+        {
+            "endereco":       str,        # endereço do dispositivo recuperado
+            "texto":          str,        # texto do dispositivo recuperado
+            "caput_endereco": str | None, # ex: "CDC, Art. 18" (None se não aplicável)
+            "caput_texto":    str | None, # texto do caput do artigo-pai (None se não aplicável)
+        }
+    """
+    artigos_recuperados: set[tuple[str, str]] = {
+        (c.documento, c.numero) for c in chunks if c.tipo == "artigo"
+    }
+
+    result: list[dict] = []
+    for c in chunks:
+        caput_endereco: str | None = None
+        caput_texto: str | None = None
+
+        if c.tipo in _TIPOS_FILHO:
+            artigo_anc = next(
+                (a for a in c.ancestrais if a.tipo == "artigo"),
+                None,
+            )
+            if (
+                artigo_anc is not None
+                and (c.documento, artigo_anc.numero) not in artigos_recuperados
+            ):
+                doc_short = c.endereco.split(", ", 1)[0]
+                caput_endereco = f"{doc_short}, Art. {artigo_anc.numero}"
+                caput_texto = artigo_anc.texto
+
+        result.append(
+            {
+                "endereco": c.endereco,
+                "texto": c.texto,
+                "caput_endereco": caput_endereco,
+                "caput_texto": caput_texto,
+            }
+        )
+
+    return result
 
 
 # ─── Validação base ───────────────────────────────────────────────────────────

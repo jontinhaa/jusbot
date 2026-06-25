@@ -47,8 +47,15 @@ requerimentos ao final indicados, nos termos da legislação vigente:
 Os direitos do(a) NOTIFICANTE encontram amparo nos seguintes dispositivos:
 
 {% for d in fundamento_legal %}
+{% if d.caput_texto %}
+• {{ d.caput_endereco }}:
+  "{{ d.caput_texto }}"
+  {{ d.endereco }}:
+  "{{ d.texto }}"
+{% else %}
 • {{ d.endereco }}:
   "{{ d.texto }}"
+{% endif %}
 {% if not loop.last %}
 
 {% endif %}

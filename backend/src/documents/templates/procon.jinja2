@@ -58,8 +58,15 @@ A presente reclamação encontra amparo na Lei nº 8.078/1990 (Código de Defesa
 Consumidor), restando configurada a violação aos seguintes dispositivos:
 
 {% for f in fundamentos %}
+{% if f.caput_texto %}
+• {{ f.caput_endereco }}:
+  "{{ f.caput_texto }}"
+  {{ f.endereco }}:
+  "{{ f.texto }}"
+{% else %}
 • {{ f.endereco }}:
   "{{ f.texto }}"
+{% endif %}
 {% if not loop.last %}
 
 {% endif %}

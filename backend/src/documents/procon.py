@@ -28,7 +28,9 @@ from .base import (
     TEMPLATES_DIR,
     buscar_fundamento,
     criar_jinja_env,
+    filtrar_pertinencia,
     formatar_data,
+    montar_fundamento,
     redigir_fatos,
     validar_campos_base,
 )
@@ -166,6 +168,7 @@ def gerar_procon(
         raise ProconError(
             "sem fundamento legal recuperado para o relato; " "não é possível gerar a reclamação"
         )
+    chunks = filtrar_pertinencia(dados.relato, chunks)
 
     # Etapa 2 — LLM redige apenas a narrativa factual (seção III-b)
     fatos = redigir_fatos(dados.relato, tipo_documento="reclamação ao PROCON")
@@ -174,7 +177,7 @@ def gerar_procon(
     _validar_campos(dados, fatos, chunks)
 
     # Etapa 4 — Monta contexto e renderiza o template
-    fundamentos = [{"endereco": c.endereco, "texto": c.texto} for c in chunks]
+    fundamentos = montar_fundamento(chunks)
     data_fato_formatada = formatar_data(dados.data_fato) if dados.data_fato else None
     data_formatada = formatar_data(dados.data)
 

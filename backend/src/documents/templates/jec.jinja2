@@ -1,0 +1,90 @@
+{#
+  RASCUNHO DE PETIÇÃO INICIAL — JUIZADO ESPECIAL CÍVEL — JusBot
+  -------------------------------------------------------------
+  Este arquivo é um RASCUNHO gerado automaticamente para fins informativos.
+  O documento produzido NÃO foi revisado por profissional do direito.
+  Deve obrigatoriamente ser validado por advogado ou defensor público
+  antes de qualquer uso real ou protocolo junto ao JEC.
+#}
+================================================================================
+                  PETIÇÃO INICIAL — JUIZADO ESPECIAL CÍVEL
+================================================================================
+
+EXCELENTÍSSIMO(A) SENHOR(A) DOUTOR(A) JUIZ(A) DE DIREITO DO JUIZADO ESPECIAL
+CÍVEL DA COMARCA DE {{ comarca_cidade }}/{{ comarca_uf }}
+
+
+{{ requerente_nome }}, {{ requerente_qualificacao | preencher("nacionalidade, estado civil, profissão") }}, portador(a) do RG nº {{ requerente_rg | preencher("RG") }} e inscrito(a) no CPF sob o nº {{ requerente_cpf }}, residente em {{ requerente_endereco | preencher("endereço") }}, e-mail {{ requerente_email | preencher("e-mail") }}, telefone {{ requerente_telefone | preencher("telefone") }}, vem, respeitosamente, à presença de Vossa Excelência propor a presente
+
+                        AÇÃO DE {{ tipo_acao | upper }}
+
+em face de {{ requerido_nome }}, {{ requerido_qualificacao | preencher("qualificação do requerido") }}, inscrito(a) no CPF/CNPJ sob o nº {{ requerido_cpf_cnpj | preencher("CPF/CNPJ") }}, com endereço em {{ requerido_endereco | preencher("endereço") }}, pelos fatos e fundamentos a seguir expostos:
+
+--------------------------------------------------------------------------------
+1. DOS FATOS
+--------------------------------------------------------------------------------
+
+No dia {{ data_fato_formatada | preencher("data do ocorrido") }}, ocorreram os fatos a seguir narrados:
+
+{{ fatos }}
+
+--------------------------------------------------------------------------------
+2. DO DIREITO
+--------------------------------------------------------------------------------
+
+A presente ação encontra amparo na Lei nº 8.078/1990 (Código de Defesa do
+Consumidor) e demais normas aplicáveis, restando configurada a violação aos
+seguintes dispositivos:
+
+{% for f in fundamentos %}
+{% if f.caput_texto %}
+• {{ f.caput_endereco }}:
+  "{{ f.caput_texto }}"
+  {{ f.endereco }}:
+  "{{ f.texto }}"
+{% else %}
+• {{ f.endereco }}:
+  "{{ f.texto }}"
+{% endif %}
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+
+--------------------------------------------------------------------------------
+3. DOS PEDIDOS
+--------------------------------------------------------------------------------
+
+Diante do exposto, requer a Vossa Excelência:
+
+{# a) e b) são os dois itens processuais fixos hard-coded abaixo; os requerimentos
+   do usuário começam em letras[0+2]=c. Se um 3º item processual fixo for adicionado,
+   o offset muda de +2 para +3. #}
+{% set letras = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'] %}
+a) a citação da parte Requerida para, querendo, comparecer à audiência de
+   conciliação e apresentar defesa, sob pena de revelia e confissão;
+b) a inversão do ônus da prova, nos termos do art. 6º, VIII, do CDC;
+{% for req in requerimentos %}
+{{ letras[loop.index0 + 2] }}) {{ req }};
+{% endfor %}
+
+Dá-se à causa o valor de {{ valor_formatado }} ({{ valor_extenso }}).
+
+Termos em que, pede deferimento.
+
+================================================================================
+
+{{ comarca_cidade }}/{{ comarca_uf }}, {{ data_formatada }}.
+
+
+_____________________________________________
+{{ requerente_nome }}
+CPF: {{ requerente_cpf }}
+
+
+================================================================================
+AVISO LEGAL: Este documento é um rascunho gerado automaticamente pelo sistema
+JusBot para fins informativos e educativos. Não constitui aconselhamento
+jurídico nem substitui a orientação de advogado. Valide este documento com um
+advogado ou defensor público antes de protocolar.
+================================================================================

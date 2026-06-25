@@ -102,3 +102,14 @@ class ProconResult:
     requerimentos: list[str]
     chunks: list[ContextualChunk]
     avisos: list[str] = field(default_factory=list)
+
+
+@dataclass
+class JecResult:
+    """Resultado da geração da petição inicial para o JEC."""
+
+    documento: str
+    fatos: str
+    requerimentos: list[str]
+    chunks: list[ContextualChunk]
+    avisos: list[str] = field(default_factory=list)

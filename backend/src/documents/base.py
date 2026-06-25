@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from num2words import num2words as _num2words
 from sqlalchemy.orm import Session
 
 from src.generation.client import _MODEL, get_client
@@ -86,6 +87,48 @@ def dias_extenso(n: int) -> str:
 def formatar_data(d: _date) -> str:
     """Formata date como 'D de mês de AAAA' em português."""
     return f"{d.day} de {_MESES_PT[d.month]} de {d.year}"
+
+
+def valor_centavos_extenso(centavos: int) -> tuple[str, str]:
+    """Converte inteiro de centavos em (valor_formatado, valor_por_extenso).
+
+    Exemplos:
+        543000  → ("R$ 5.430,00", "cinco mil, quatrocentos e trinta reais")
+        184753  → ("R$ 1.847,53", "mil, oitocentos e quarenta e sete reais e cinquenta e três centavos")
+        100     → ("R$ 1,00", "um real")
+        99      → ("R$ 0,99", "noventa e nove centavos")
+
+    Defensivo: centavos <= 0 retorna marcadores em vez de quebrar
+    (o schema DadosJec já barra gt=0, mas o helper não deve explodir se chamado isolado).
+    Sem float em nenhum momento — reais e centavos obtidos por divisão inteira.
+    """
+    if centavos <= 0:
+        return ("[A PREENCHER: valor]", "[A PREENCHER: valor por extenso]")
+
+    reais = centavos // 100
+    cents = centavos % 100
+
+    # Formatação monetária: separador de milhar = ponto, decimal = vírgula
+    reais_str = f"{reais:,}".replace(",", ".")
+    valor_formatado = f"R$ {reais_str},{cents:02d}"
+
+    # Extenso: monta partes separadas para não depender do formato de num2words de moeda dupla
+    partes: list[str] = []
+    if reais > 0:
+        # to='currency' entrega concordância "um real" / "dois reais" automaticamente
+        partes.append(_num2words(reais, lang="pt_BR", to="currency"))
+    if cents > 0:
+        cents_label = "centavo" if cents == 1 else "centavos"
+        partes.append(f"{_num2words(cents, lang='pt_BR')} {cents_label}")
+
+    valor_por_extenso = f"{partes[0]} e {partes[1]}" if len(partes) == 2 else partes[0]
+
+    # Praxe forense: num2words omite "um" em valores 1.000-1.999 ("mil reais",
+    # "mil, oitocentos..."). \b isola a palavra - nao casa "milhao"/"milhoes".
+    if re.match(r"^mil\b", valor_por_extenso):
+        valor_por_extenso = "um " + valor_por_extenso
+
+    return (valor_formatado, valor_por_extenso)
 
 
 # ─── Filtro Jinja2 ────────────────────────────────────────────────────────────

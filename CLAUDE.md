@@ -428,7 +428,15 @@ Respostas para a pergunta da banca "o que esse trabalho traz de novo?":
 
 ## 📌 STATUS ATUAL DO PROJETO
 
-**Última atualização:** 24/06/2026. Fase: reta final, Semana 1 (24/06–30/06). Camada 4 (geração de documentos) em andamento. base.py fechado (funções soltas, ADR-014). Documento 1 — Notificação extrajudicial: pronto no código, validado em 2 casos (consumidor + trabalho); PENDÊNCIA ABERTA = validação do advogado na peça renderizada (não só no template). Próxima ação: Documento 2 — Reclamação PROCON (modelo do advogado recebido) → schema próprio + template + gerar_procon sobre base.py. Em seguida: Documento 3 — Petição JEC.
+**Última atualização:** 25/06/2026. Fase: reta final, Semana 1 FECHADA (24/06–30/06) — adiantada. **Camada 4 completa** (3 documentos entregues, 1 semana antes do planejado).
+
+Resumo do que foi entregue na Semana 1:
+- base.py: `montar_fundamento` (caput-pai via ancestrais, dedup), `filtrar_pertinencia` (re-ranking LLM, fallback), `valor_centavos_extenso` (num2words, forma forense "um mil", word boundary). Dependência `num2words` adicionada.
+- Documento 1 — Notificação extrajudicial: entregue semanas anteriores. PENDÊNCIA ABERTA = validação do advogado na peça renderizada (não só no template).
+- Documento 2 — Reclamação PROCON: schema `DadosProcon`, template `procon.jinja2`, `gerar_procon`. Validado com 2 casos (consumidor).
+- Documento 3 — Petição JEC: schema `DadosJec` (tipo_acao como Literal, valor_causa_centavos), template `jec.jinja2` (qualificação em prosa, pedidos processuais fixos), `gerar_jec`. Validado com 2 casos.
+
+**Próxima ação (Semana 2, 01/07–07/07):** validação jurídica dos 3 documentos gerados + início da Interface HTML (Semana 3 no plano, pode antecipar). `validate_jec.py` não commitado — script de teste local, não é produção.
 
 **Orientador:** Prof. __________
 **Coorientador:** Prof. __________

@@ -20,11 +20,7 @@ NOTIFICADO:  {{ notificado_nome }},
 
 ASSUNTO:     {{ assunto }}
 
-NOTIFICANTE: {{ notificante_nome }},
-             {{ notificante_nacionalidade | preencher("nacionalidade do notificante") }},
-             {{ notificante_estado_civil | preencher("estado civil do notificante") }},
-             {{ notificante_profissao | preencher("profissão do notificante") }},
-             {{ notificante_qualificacao }},
+NOTIFICANTE: {{ notificante_nome }}, {{ notificante_qualificacao }},
              portador(a) do CPF nº {{ notificante_cpf }},
              residente em {{ notificante_endereco | preencher("endereço completo do notificante") }}.
 

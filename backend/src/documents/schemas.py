@@ -42,9 +42,6 @@ class DadosCaso(BaseModel):
     )
 
     # ── Notificante — qualificação completa (opcionais) ───────────────────────
-    notificante_nacionalidade: str | None = None
-    notificante_estado_civil: str | None = None
-    notificante_profissao: str | None = None
     notificante_endereco: str | None = None
 
     # ── Notificado — obrigatório ──────────────────────────────────────────────

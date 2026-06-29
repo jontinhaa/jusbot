@@ -102,9 +102,6 @@ def gerar_notificacao(
         notificante_nome=dados.notificante_nome,
         notificante_cpf=dados.notificante_cpf,
         notificante_qualificacao=dados.notificante_qualificacao,
-        notificante_nacionalidade=dados.notificante_nacionalidade,
-        notificante_estado_civil=dados.notificante_estado_civil,
-        notificante_profissao=dados.notificante_profissao,
         notificante_endereco=dados.notificante_endereco,
         # Notificado
         notificado_nome=dados.notificado_nome,
@@ -178,11 +175,8 @@ def _teste_a_consumidor() -> None:
 
     dados = DadosCaso(
         notificante_nome="Maria da Silva",
-        notificante_qualificacao="consumidora",
+        notificante_qualificacao="brasileira, casada, professora",
         notificante_cpf="123.456.789-00",
-        notificante_nacionalidade="brasileira",
-        notificante_estado_civil="casada",
-        notificante_profissao="professora",
         notificante_endereco="Rua das Palmeiras, 123, Bairro Centro, Paragominas/PA, CEP 68.625-000",
         notificado_nome="TeleconBrasil S.A.",
         notificado_qualificacao="empresa prestadora de serviços de telecomunicações",
@@ -248,11 +242,8 @@ def _teste_b_trabalhista() -> None:
 
     dados = DadosCaso(
         notificante_nome="João Pereira dos Santos",
-        notificante_qualificacao="trabalhador",
+        notificante_qualificacao="brasileiro, solteiro, operador de máquinas",
         notificante_cpf="987.654.321-00",
-        notificante_nacionalidade="brasileiro",
-        notificante_estado_civil="solteiro",
-        notificante_profissao="operador de máquinas",
         notificante_endereco="Av. Brasil, 456, Bairro Industrial, Paragominas/PA, CEP 68.625-100",
         notificado_nome="Mineradora Alfa Ltda.",
         notificado_qualificacao="empresa do setor de mineração, empregadora do notificante",

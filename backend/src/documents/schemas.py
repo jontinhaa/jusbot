@@ -50,9 +50,6 @@ class DadosCaso(BaseModel):
     # ── Notificado — qualificação inteiramente opcional ───────────────────────
     # (cidadão frequentemente não conhece os dados completos da outra parte)
     notificado_qualificacao: str | None = None
-    notificado_nacionalidade: str | None = None
-    notificado_estado_civil: str | None = None
-    notificado_profissao: str | None = None
     notificado_cpf_cnpj: str | None = None
     notificado_endereco: str | None = None
 

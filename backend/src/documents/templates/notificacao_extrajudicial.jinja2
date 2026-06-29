@@ -10,11 +10,7 @@
                           NOTIFICAÇÃO EXTRAJUDICIAL
 ================================================================================
 
-NOTIFICADO:  {{ notificado_nome }},
-             {{ notificado_nacionalidade | preencher("nacionalidade do notificado") }},
-             {{ notificado_estado_civil | preencher("estado civil do notificado") }},
-             {{ notificado_profissao | preencher("profissão do notificado") }},
-             {{ notificado_qualificacao | preencher("qualificação/papel do notificado") }},
+NOTIFICADO:  {{ notificado_nome }}, {{ notificado_qualificacao | preencher("qualificação do notificado") }},
              inscrito(a) no CPF/CNPJ sob nº {{ notificado_cpf_cnpj | preencher("CPF/CNPJ do notificado") }},
              residente/sediado(a) em {{ notificado_endereco | preencher("endereço completo do notificado") }}.
 

@@ -106,9 +106,6 @@ def gerar_notificacao(
         # Notificado
         notificado_nome=dados.notificado_nome,
         notificado_qualificacao=dados.notificado_qualificacao,
-        notificado_nacionalidade=dados.notificado_nacionalidade,
-        notificado_estado_civil=dados.notificado_estado_civil,
-        notificado_profissao=dados.notificado_profissao,
         notificado_cpf_cnpj=dados.notificado_cpf_cnpj,
         notificado_endereco=dados.notificado_endereco,
         # Caso

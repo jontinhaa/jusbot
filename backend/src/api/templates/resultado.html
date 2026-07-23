@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}JusBot — {{ titulo }}{% endblock %}
+{% block content %}
+<h1>{{ titulo }}</h1>
+
+{% if erro %}
+<div class="erro-box">
+  <strong>Não foi possível gerar o documento:</strong>
+  {{ erro }}
+</div>
+<a class="voltar" href="javascript:history.back()">← Voltar e corrigir</a>
+
+{% else %}
+
+{% if avisos %}
+{% for aviso in avisos %}
+<div class="aviso-usuario">{{ aviso }}</div>
+{% endfor %}
+{% endif %}
+
+<button class="btn-copiar"
+        onclick="navigator.clipboard.writeText(document.getElementById('doc-texto').innerText)">
+  Copiar texto
+</button>
+
+<pre id="doc-texto" class="documento">{{ documento }}</pre>
+
+<a class="voltar" href="/">← Gerar outro documento</a>
+
+<p class="disclaimer">
+  Este documento é um rascunho gerado automaticamente com base no relato fornecido.
+  Revise as informações antes de protocolar. Para casos complexos, consulte um advogado ou a Defensoria Pública.
+</p>
+
+{% endif %}
+{% endblock %}

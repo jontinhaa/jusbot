@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}JusBot — Reclamação PROCON{% endblock %}
+{% block content %}
+<h1>Reclamação ao PROCON</h1>
+<p class="intro">
+  A geração usa análise jurídica automatizada e leva cerca de <strong>10 a 20 segundos</strong>.
+  Campos com <span style="color:#c0392b">*</span> são obrigatórios.
+</p>
+
+<form method="POST" action="/gerar/procon"
+      onsubmit="this.querySelector('#btn-gerar').disabled=true;
+                document.getElementById('msg-espera').style.display='block';">
+
+  <div class="card">
+    <h2>Seus dados (requerente)</h2>
+
+    <label for="nome_requerente">Nome completo <span class="obrig">*</span></label>
+    <input type="text" id="nome_requerente" name="nome_requerente" required
+           placeholder="Ex: João Pereira dos Santos">
+
+    <label for="cpf_requerente">CPF <span class="obrig">*</span></label>
+    <input type="text" id="cpf_requerente" name="cpf_requerente" required
+           placeholder="000.000.000-00" maxlength="14">
+  </div>
+
+  <div class="card">
+    <h2>PROCON destinatário</h2>
+
+    <label for="procon_cidade">Cidade do PROCON <span class="obrig">*</span></label>
+    <input type="text" id="procon_cidade" name="procon_cidade" required
+           placeholder="Ex: Paragominas">
+
+    <label for="procon_uf">UF <span class="obrig">*</span></label>
+    <input type="text" id="procon_uf" name="procon_uf" required
+           maxlength="2" placeholder="PA" style="width:80px;">
+  </div>
+
+  <div class="card">
+    <h2>Empresa reclamada</h2>
+
+    <label for="requerida_nome">Nome ou razão social <span class="obrig">*</span></label>
+    <input type="text" id="requerida_nome" name="requerida_nome" required
+           placeholder="Ex: Lojas Americanas S.A.">
+  </div>
+
+  <div class="card">
+    <h2>Dados do problema</h2>
+
+    <label for="produto_servico">Produto ou serviço adquirido <span class="obrig">*</span></label>
+    <input type="text" id="produto_servico" name="produto_servico" required
+           placeholder="Ex: Televisão Samsung 55″ modelo UN55TU7020, comprada em jan/2026">
+
+    <label for="relato">Relato do ocorrido <span class="obrig">*</span></label>
+    <textarea id="relato" name="relato" rows="8" required
+              placeholder="Descreva o que aconteceu: datas, valores pagos, defeito ou descumprimento, tentativas de contato com a empresa, protocolos de atendimento, etc."></textarea>
+
+    <label for="requerimentos">O que você exige — um pedido por linha <span class="obrig">*</span></label>
+    <textarea id="requerimentos" name="requerimentos" rows="5" required
+              placeholder="Ex:&#10;Reparo do produto no prazo de 30 dias&#10;Substituição por produto novo de mesma espécie&#10;Devolução integral do valor pago (R$ 2.500,00)"></textarea>
+  </div>
+
+  <button class="btn-submit" id="btn-gerar" type="submit">Gerar Reclamação</button>
+  <p class="aviso-espera" id="msg-espera" style="display:none;">
+    Aguarde — analisando o relato e gerando o documento jurídico…
+  </p>
+</form>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}JusBot — Petição JEC{% endblock %}
+{% block content %}
+<h1>Petição Inicial — Juizado Especial Cível</h1>
+<p class="intro">
+  A geração usa análise jurídica automatizada e leva cerca de <strong>10 a 20 segundos</strong>.
+  Campos com <span style="color:#c0392b">*</span> são obrigatórios.
+</p>
+
+<form method="POST" action="/gerar/jec"
+      onsubmit="this.querySelector('#btn-gerar').disabled=true;
+                document.getElementById('msg-espera').style.display='block';">
+
+  <div class="card">
+    <h2>Comarca</h2>
+
+    <label for="comarca_cidade">Cidade <span class="obrig">*</span></label>
+    <input type="text" id="comarca_cidade" name="comarca_cidade" required
+           placeholder="Ex: Paragominas">
+
+    <label for="comarca_uf">UF <span class="obrig">*</span></label>
+    <input type="text" id="comarca_uf" name="comarca_uf" required
+           maxlength="2" placeholder="PA" style="width:80px;">
+  </div>
+
+  <div class="card">
+    <h2>Seus dados (requerente)</h2>
+
+    <label for="requerente_nome">Nome completo <span class="obrig">*</span></label>
+    <input type="text" id="requerente_nome" name="requerente_nome" required
+           placeholder="Ex: Amanda Souza Lima">
+
+    <label for="requerente_cpf">CPF <span class="obrig">*</span></label>
+    <input type="text" id="requerente_cpf" name="requerente_cpf" required
+           placeholder="000.000.000-00" maxlength="14">
+  </div>
+
+  <div class="card">
+    <h2>Empresa ou pessoa processada (requerida)</h2>
+
+    <label for="requerido_nome">Nome ou razão social <span class="obrig">*</span></label>
+    <input type="text" id="requerido_nome" name="requerido_nome" required
+           placeholder="Ex: FastShop Comércio Eletrônico S.A.">
+  </div>
+
+  <div class="card">
+    <h2>Dados da ação</h2>
+
+    <label for="tipo_acao">Tipo de ação <span class="obrig">*</span></label>
+    <select id="tipo_acao" name="tipo_acao" required>
+      <option value="indenização por danos materiais">Indenização por danos materiais</option>
+      <option value="indenização por danos morais">Indenização por danos morais</option>
+      <option value="indenização por danos materiais e morais">Indenização por danos materiais e morais</option>
+      <option value="obrigação de fazer">Obrigação de fazer</option>
+      <option value="obrigação de não fazer">Obrigação de não fazer</option>
+      <option value="cobrança">Cobrança</option>
+      <option value="restituição de valores">Restituição de valores</option>
+    </select>
+
+    <label for="valor_causa">Valor da causa (R$) <span class="obrig">*</span></label>
+    <input type="text" id="valor_causa" name="valor_causa" required
+           placeholder="Ex: 4924,70" style="width:220px;">
+    <small style="display:block;color:#6c757d;font-size:0.8rem;margin-top:0.2rem;">
+      Use vírgula ou ponto como separador decimal. Ex: 1500,00 ou 1500.00
+    </small>
+  </div>
+
+  <div class="card">
+    <h2>Relato e pedidos</h2>
+
+    <label for="relato">Relato do ocorrido <span class="obrig">*</span></label>
+    <textarea id="relato" name="relato" rows="8" required
+              placeholder="Descreva o que aconteceu: datas, valores, defeito ou descumprimento, tentativas de resolver amigavelmente, documentos que possui, etc."></textarea>
+
+    <label for="requerimentos">Pedidos — um por linha <span class="obrig">*</span></label>
+    <textarea id="requerimentos" name="requerimentos" rows="5" required
+              placeholder="Ex:&#10;Indenização por danos materiais no valor de R$ 4.924,70&#10;Indenização por danos morais no valor de R$ 5.000,00&#10;Condenação em custas e demais cominações legais"></textarea>
+  </div>
+
+  <button class="btn-submit" id="btn-gerar" type="submit">Gerar Petição</button>
+  <p class="aviso-espera" id="msg-espera" style="display:none;">
+    Aguarde — analisando o relato e gerando o documento jurídico…
+  </p>
+</form>
+{% endblock %}

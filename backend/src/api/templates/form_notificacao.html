@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}JusBot — Notificação Extrajudicial{% endblock %}
+{% block content %}
+<h1>Notificação Extrajudicial</h1>
+<p class="intro">
+  A geração usa análise jurídica automatizada e leva cerca de <strong>10 a 20 segundos</strong>.
+  Campos com <span style="color:#c0392b">*</span> são obrigatórios.
+</p>
+
+<form method="POST" action="/gerar/notificacao"
+      onsubmit="this.querySelector('#btn-gerar').disabled=true;
+                document.getElementById('msg-espera').style.display='block';">
+
+  <div class="card">
+    <h2>Seus dados (notificante)</h2>
+
+    <label for="notificante_nome">Nome completo <span class="obrig">*</span></label>
+    <input type="text" id="notificante_nome" name="notificante_nome" required
+           placeholder="Ex: Maria da Silva">
+
+    <label for="notificante_qualificacao">Qualificação <span class="obrig">*</span></label>
+    <input type="text" id="notificante_qualificacao" name="notificante_qualificacao" required
+           placeholder="Ex: brasileira, casada, professora">
+
+    <label for="notificante_cpf">CPF <span class="obrig">*</span></label>
+    <input type="text" id="notificante_cpf" name="notificante_cpf" required
+           placeholder="000.000.000-00" maxlength="14">
+  </div>
+
+  <div class="card">
+    <h2>Outra parte (notificado)</h2>
+
+    <label for="notificado_nome">Nome ou razão social <span class="obrig">*</span></label>
+    <input type="text" id="notificado_nome" name="notificado_nome" required
+           placeholder="Ex: TeleconBrasil S.A.">
+  </div>
+
+  <div class="card">
+    <h2>Dados do caso</h2>
+
+    <label for="area">Área jurídica <span class="obrig">*</span></label>
+    <select id="area" name="area" required>
+      <option value="consumidor">Direito do Consumidor</option>
+      <option value="trabalho">Direito Trabalhista</option>
+    </select>
+
+    <label for="assunto">Assunto resumido <span class="obrig">*</span></label>
+    <input type="text" id="assunto" name="assunto" required
+           placeholder="Ex: Internet abaixo da velocidade contratada">
+
+    <label for="cidade">Cidade (de emissão do documento) <span class="obrig">*</span></label>
+    <input type="text" id="cidade" name="cidade" required
+           placeholder="Ex: Paragominas">
+
+    <label for="prazo_dias">Prazo para resposta (dias) — padrão 15</label>
+    <input type="number" id="prazo_dias" name="prazo_dias" value="15" min="1" max="365"
+           style="width:120px;">
+  </div>
+
+  <div class="card">
+    <h2>Relato e pedidos</h2>
+
+    <label for="relato">Relato do ocorrido <span class="obrig">*</span></label>
+    <textarea id="relato" name="relato" rows="8" required
+              placeholder="Descreva o que aconteceu com detalhes: datas, valores, tentativas de contato, documentos que possui, etc."></textarea>
+
+    <label for="requerimentos">O que você exige — um pedido por linha <span class="obrig">*</span></label>
+    <textarea id="requerimentos" name="requerimentos" rows="5" required
+              placeholder="Ex:&#10;Forneça a velocidade de 100 Mbps contratada&#10;Devolva os valores cobrados pelo período de serviço deficiente"></textarea>
+  </div>
+
+  <button class="btn-submit" id="btn-gerar" type="submit">Gerar Notificação</button>
+  <p class="aviso-espera" id="msg-espera" style="display:none;">
+    Aguarde — analisando o relato e gerando o documento jurídico…
+  </p>
+</form>
+{% endblock %}

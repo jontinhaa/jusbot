@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}JusBot{% endblock %}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8f9fa;
+      color: #212529;
+      line-height: 1.6;
+    }
+    header {
+      background: #1a4a8a;
+      color: #fff;
+      padding: 0.75rem 1.5rem;
+    }
+    header a { color: #c8deff; text-decoration: none; font-size: 0.9rem; }
+    header a:hover { text-decoration: underline; }
+    main {
+      max-width: 860px;
+      margin: 2rem auto;
+      padding: 0 1.5rem 3rem;
+    }
+    h1 { font-size: 1.55rem; margin-bottom: 0.5rem; color: #1a4a8a; }
+    h2 { font-size: 1.05rem; margin-bottom: 0.5rem; color: #1a4a8a; }
+    .intro { color: #495057; font-size: 0.95rem; margin-bottom: 1.5rem; }
+    .card {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.88rem;
+      margin-top: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    label:first-child { margin-top: 0; }
+    label .obrig { color: #c0392b; }
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid #1a4a8a;
+      outline-offset: 1px;
+      border-color: #1a4a8a;
+    }
+    textarea { resize: vertical; }
+    .btn-submit {
+      display: inline-block;
+      margin-top: 1.25rem;
+      padding: 0.7rem 1.75rem;
+      background: #1a4a8a;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-submit:hover { background: #153d75; }
+    .btn-submit:disabled { background: #6c757d; cursor: not-allowed; }
+    .aviso-espera {
+      margin-top: 0.6rem;
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
+    .aviso-usuario {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 0.7rem 1rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+      color: #664d03;
+    }
+    .erro-box {
+      background: #f8d7da;
+      border: 1px solid #f5c2c7;
+      border-radius: 4px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 1rem;
+      color: #842029;
+    }
+    .erro-box strong { display: block; margin-bottom: 0.25rem; }
+    pre.documento {
+      font-family: "Courier New", Courier, monospace;
+      font-size: 0.84rem;
+      white-space: pre;
+      overflow-x: auto;
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 1.5rem;
+      line-height: 1.45;
+    }
+    .home-links { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.25rem; }
+    .home-link {
+      display: block;
+      padding: 1rem 1.25rem;
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      text-decoration: none;
+      color: #212529;
+    }
+    .home-link:hover { border-color: #1a4a8a; background: #f0f4ff; }
+    .home-link strong { display: block; color: #1a4a8a; font-size: 1rem; margin-bottom: 0.2rem; }
+    .home-link span { font-size: 0.86rem; color: #6c757d; }
+    .btn-copiar {
+      padding: 0.35rem 0.85rem;
+      background: #fff;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.84rem;
+      cursor: pointer;
+      margin-bottom: 0.75rem;
+    }
+    .btn-copiar:hover { background: #e9ecef; }
+    .voltar { font-size: 0.88rem; color: #1a4a8a; margin-top: 1rem; display: inline-block; }
+    .disclaimer {
+      font-size: 0.78rem;
+      color: #6c757d;
+      margin-top: 2rem;
+      border-top: 1px solid #dee2e6;
+      padding-top: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <strong style="font-size:1rem;">JusBot</strong>
+    &ensp;|&ensp;
+    <a href="/">Início</a>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

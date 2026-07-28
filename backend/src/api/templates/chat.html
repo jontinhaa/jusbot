@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Consulta Jurídica — JusBot{% endblock %}
+{% block content %}
+<style>
+  .chat-historico {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .chat-turno-user { align-self: flex-end; max-width: 78%; }
+  .chat-turno-assistente { align-self: flex-start; max-width: 100%; }
+  .label-turno { font-size: 0.75rem; color: #6c757d; margin-bottom: 0.25rem; }
+  .chat-turno-user .label-turno { text-align: right; }
+  .balao-user {
+    background: #1a4a8a;
+    color: #fff;
+    border-radius: 14px 14px 2px 14px;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    white-space: pre-wrap;
+  }
+  .balao-assistente {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 2px 14px 14px 14px;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    white-space: pre-wrap;
+  }
+  details.dispositivos {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+  }
+  details.dispositivos summary {
+    cursor: pointer;
+    color: #1a4a8a;
+    user-select: none;
+  }
+  details.dispositivos ul { margin-top: 0.35rem; padding-left: 1.2rem; line-height: 1.65; }
+  .doc-links {
+    margin-top: 0.55rem;
+    font-size: 0.82rem;
+    color: #6c757d;
+  }
+  .doc-links a { color: #1a4a8a; text-decoration: none; }
+  .doc-links a:hover { text-decoration: underline; }
+  .chat-input-area {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-top: 0.25rem;
+  }
+  .chat-form-row { display: flex; gap: 0.75rem; align-items: flex-end; margin-top: 0.5rem; }
+  .chat-form-row textarea { flex: 1; resize: vertical; min-height: 62px; }
+  .chat-form-row .btn-submit { flex-shrink: 0; }
+</style>
+
+<h1>Consulta Jurídica</h1>
+<p class="intro">
+  Descreva seu problema e entenda seus direitos com base na legislação brasileira.
+  Você pode fazer perguntas de acompanhamento após cada resposta.
+</p>
+
+{% if erro %}
+<div class="erro-box"><strong>Erro</strong> {{ erro }}</div>
+{% endif %}
+
+{% if historico %}
+<div class="chat-historico" id="chat-historico">
+  {% for turno in historico %}
+    {% if turno.papel == 'user' %}
+    <div class="chat-turno-user">
+      <div class="label-turno">Você</div>
+      <div class="balao-user">{{ turno.texto }}</div>
+    </div>
+    {% else %}
+    <div class="chat-turno-assistente">
+      <div class="label-turno">JusBot</div>
+      <div class="balao-assistente">{{ turno.texto }}</div>
+      {% if turno.dispositivos %}
+      <details class="dispositivos">
+        <summary>{{ turno.dispositivos | length }} dispositivo(s) consultado(s)</summary>
+        <ul>{% for d in turno.dispositivos %}<li>{{ d }}</li>{% endfor %}</ul>
+      </details>
+      {% endif %}
+      <div class="doc-links">
+        Precisa de um documento? →
+        <a href="/novo/notificacao">Notificação extrajudicial</a> ·
+        <a href="/novo/procon">Reclamação PROCON</a> ·
+        <a href="/novo/jec">Petição JEC</a>
+      </div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<form id="chat-form" method="post" action="/chat">
+  <input type="hidden" name="conversa_id" value="{{ conversa_id }}">
+  <div class="chat-input-area">
+    <label for="pergunta">
+      {% if historico %}Pergunta de acompanhamento{% else %}Sua pergunta{% endif %}
+    </label>
+    <div class="chat-form-row">
+      <textarea
+        name="pergunta"
+        id="pergunta"
+        rows="3"
+        placeholder="Ex.: Fui demitido sem justa causa. Tenho direito a alguma indenização?"
+        required
+      ></textarea>
+      <button type="submit" class="btn-submit" id="btn-enviar">Enviar</button>
+    </div>
+    <p class="aviso-espera" id="aviso-espera" style="display:none">
+      Consultando a legislação, aguarde…
+    </p>
+  </div>
+</form>
+
+<script>
+  document.getElementById('chat-form').addEventListener('submit', function () {
+    document.getElementById('btn-enviar').disabled = true;
+    document.getElementById('aviso-espera').style.display = 'block';
+  });
+  if (document.getElementById('chat-historico')) {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  }
+</script>
+
+<p class="disclaimer">
+  Este sistema fornece informações jurídicas educativas com base na legislação disponível.
+  Para casos complexos, consulte um advogado ou a Defensoria Pública.
+</p>
+{% endblock %}

@@ -20,6 +20,18 @@ from sqlalchemy.orm import Session
 
 load_dotenv("../.env")
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:%(name)s:%(message)s",
+    force=True,
+)
+
+from src.api.conversa import (  # noqa: E402
+    adicionar_turno,
+    criar_conversa,
+    historico_para_llm,
+    obter_historico,
+)
 from src.api.schemas import DispositivoCitado, PerguntaRequest, RespostaResponse  # noqa: E402
 from src.documents.jec import DadosJec, JecError, gerar_jec  # noqa: E402
 from src.documents.notificacao import NotificacaoError, gerar_notificacao  # noqa: E402
@@ -116,6 +128,54 @@ def _erro_html(request: Request, tipo: str, msg: str) -> HTMLResponse:
         request,
         "resultado.html",
         {"titulo": _TITULOS[tipo], "erro": msg, "documento": None, "avisos": []},
+    )
+
+
+@app.get("/chat", response_class=HTMLResponse)
+def chat_get(request: Request) -> HTMLResponse:
+    conversa_id = criar_conversa()
+    return templates.TemplateResponse(
+        request,
+        "chat.html",
+        {"conversa_id": conversa_id, "historico": [], "erro": None},
+    )
+
+
+@app.post("/chat", response_class=HTMLResponse)
+def chat_post(
+    request: Request,
+    pergunta: str = Form(...),
+    conversa_id: str = Form(...),
+) -> HTMLResponse:
+    hist_llm = historico_para_llm(conversa_id)
+    adicionar_turno(conversa_id, "user", pergunta)
+    try:
+        with Session(request.app.state.engine) as session:
+            result = generate_answer(
+                pergunta, session, request.app.state.emb_model, k=8, historico=hist_llm
+            )
+    except Exception as exc:
+        logger.error("Erro no chat: %s", exc, exc_info=True)
+        return templates.TemplateResponse(
+            request,
+            "chat.html",
+            {
+                "conversa_id": conversa_id,
+                "historico": obter_historico(conversa_id),
+                "erro": f"Erro ao consultar a legislação: {exc}",
+            },
+        )
+
+    dispositivos = [c.endereco for c in result.chunks]
+    adicionar_turno(conversa_id, "assistant", result.answer, dispositivos=dispositivos)
+    return templates.TemplateResponse(
+        request,
+        "chat.html",
+        {
+            "conversa_id": conversa_id,
+            "historico": obter_historico(conversa_id),
+            "erro": None,
+        },
     )
 
 

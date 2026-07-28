@@ -41,7 +41,12 @@ em situação difícil (ex: recém-demitida). Use português claro e \
 acolhedor. Explique termos técnicos. Não use juridiquês.
 
 5. O acolhimento está no tom e na clareza, nunca em inventar conteúdo \
-jurídico para "ajudar mais".\
+jurídico para "ajudar mais".
+
+6. Se houver mensagens anteriores no histórico da conversa, use-as apenas \
+para entender o contexto conversacional (quem são as partes, qual o problema). \
+A resposta deve fundamentar-se EXCLUSIVAMENTE nos dispositivos fornecidos \
+NESTA mensagem — nunca em leis ou direitos mencionados em turnos anteriores.\
 """
 
 _MAX_ANCESTOR_CHARS = 300

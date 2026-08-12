@@ -54,10 +54,10 @@ Resposta + base legal citada
 - [x] Definição da arquitetura RAG
 - [x] Estrutura inicial do backend (FastAPI)
 - [x] Integração com ChromaDB para busca semântica
-- [ ] Ingestão e indexação completa da base legal (CDC, CLT)
-- [ ] Refinamento de prompts para citação consistente da fonte
-- [ ] Integração completa do frontend React com a API
-- [ ] Avaliação de qualidade das respostas (precisão jurídica)
+- [x] Ingestão e indexação completa da base legal (CDC, CLT)
+- [x] Refinamento de prompts para citação consistente da fonte
+- [x] Integração completa do frontend React com a API
+- [x] Avaliação de qualidade das respostas (precisão jurídica)
 - [ ] Deploy de versão demonstrável
 
 ## 👥 Autoria

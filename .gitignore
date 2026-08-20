@@ -32,3 +32,18 @@ Thumbs.db
 .env.local
 # Claude Code
 .claude/settings.local.json
+
+# Scripts de diagnostico e artefatos de teste (scratch)
+backend/diag_*.py
+backend/gerar_*.py
+backend/amostrar_*.py
+backend/raster_*.py
+backend/dump_*.py
+backend/teste_*.py
+backend/export_pecas.py
+backend/pecas_validacao/
+backend/*.png
+backend/*.pdf
+
+# Documento do TCC (binario, backup fora do repo)
+docs/tcc/

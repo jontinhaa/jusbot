@@ -1,4 +1,4 @@
-# Notas de estudo — TCC JusBot
+                                                            # Notas de estudo — TCC JusBot
 
 > **Propósito:** material de consulta para escrever os capítulos de metodologia/resultados e para preparar a defesa. Cada item traz a **decisão**, o **porquê** e, quando aplicável, o **argumento de banca**. Não é texto final do TCC — é o brain dump técnico de onde o texto vai sair.
 >
@@ -266,13 +266,14 @@ _Documento vivo — acrescentar marcos, decisões e bugs ao longo das próximas 
 **Contexto:** o filtro atual (`filtrar_pertinencia` em `base.py`) é binário — o LLM recebe a lista de dispositivos recuperados e responde com índices (inclui/exclui). A saída é fechada ao conjunto de entrada, impossível introduzir artigo novo. O filtro resolve o problema de ruído jurídico (ex.: vício de serviço num caso de produto), mas não distingue graus de relevância entre os mantidos.
 
 **Experimento proposto (comparar duas variantes sobre o dataset de avaliação):**
+
 1. **Baseline — filtro binário atual:** LLM escolhe índices (inclui/exclui). Sem score.
 2. **Variante A — pointwise LLM scoring:** LLM atribui score de 0–10 para cada dispositivo, definindo o threshold de corte. Permite ranquear os mantidos e calibrar "quanto da lista" entra.
 3. **Variante B — query rewriting antes do retrieval:** antes de chamar `buscar_fundamento`, reescrever a query do usuário em linguagem mais técnica/jurídica (ex.: "celular parou de ligar" → "vício oculto produto durável CDC"). Mede impacto no retrieval, não no filtro.
 
 **Métrica formal:** avaliar sobre o dataset de 15–20 casos anonimizados. Não usar mérito jurídico próprio do LLM como critério — isso reabre a alucinação pela porta dos fundos. A métrica é **aderência ao texto do dispositivo**: dado o relato, o dispositivo recuperado contém termos/conceitos que textualmente se aplicam? Validar contra gabarito do professor de Direito.
 
-**Ressalva anti-alucinação (crítica):** em pointwise scoring, a instrução ao LLM deve ser "pontue pela aderência do texto do dispositivo ao relato, não pelo que você sabe sobre direito do consumidor". Se o prompt pedir para o LLM julgar o mérito jurídico, ele pode pontuar alto um dispositivo que *ele acha* relevante mas que não está na base — e o gabarito seria construído sobre raciocínio próprio do modelo, não sobre texto da lei. O benchmark vira circular.
+**Ressalva anti-alucinação (crítica):** em pointwise scoring, a instrução ao LLM deve ser "pontue pela aderência do texto do dispositivo ao relato, não pelo que você sabe sobre direito do consumidor". Se o prompt pedir para o LLM julgar o mérito jurídico, ele pode pontuar alto um dispositivo que _ele acha_ relevante mas que não está na base — e o gabarito seria construído sobre raciocínio próprio do modelo, não sobre texto da lei. O benchmark vira circular.
 
 **Por que vale como contribuição:** os três sistemas (retrieval puro, retrieval + filtro binário, retrieval + filtro pointwise) são comparáveis com a mesma métrica. O delta documenta empiricamente o ganho do filtro de pertinência — exatamente o tipo de ablation study que diferencia TCC de engenharia de TCC de pesquisa.
 
@@ -311,3 +312,298 @@ A query "comprei produto com defeito, posso devolver?" recuperou dispositivos so
 3. Decisão de design contra over-engineering (funções vs. herança). Documentar que você avaliou classe base e recusou, com justificativa de adequação ao escopo, mostra critério. Liga com a filosofia transversal do projeto (recusa de ENUM, de view materializada, de LTREE) — "engenharia adequada ao volume e ao propósito, não ao 'e se um dia escalar'". Já está no teu tcc_notes como princípio; esse é mais um caso dele.
 
 4. Filtro de área como mitigação de uma limitação conhecida, habilitada pelo contexto. Vale registrar que o mesmo filtro (ADR-012) que ficava desligado na busca conversacional foi ligado na geração de documento, porque aqui o usuário declara a área — informação que a busca livre não tem. A limitação de retrieval da Semana 5 virou uma decisão de design consciente no contexto de documento, não um problema em aberto.
+
+## Achados da geração documental (Camada 4) — registrar na escrita
+
+<!-- CONTEXTO: estes achados saíram da implementação e dos testes da Camada 4
+     (notificação, PROCON, JEC) e dos diagnósticos de retrieval no caminho de
+     documento. Cada um é candidato a parágrafo de Resultados ou Metodologia. -->
+
+### 1. Score de similaridade ≠ pertinência jurídica (diagnóstico de score)
+
+<!-- DE ONDE VEIO: ao montar o filtro de fundamento do PROCON, testei cortar o
+     ruído por score_rrf antes de recorrer a LLM. Rodei 3 relatos e olhei os
+     scores. -->
+
+O corte por score RRF foi testado como filtro de fundamento e REJEITADO com base
+empírica: a posição do "salto" de score variou entre casos (relato 1: entre 2ª-3ª;
+relato 2: 3ª-4ª; relato 3: 1ª-2ª), inviabilizando um limiar fixo. Pior: em um caso
+de vício de produto, o dispositivo de vício de SERVIÇO (irrelevante) apareceu em 1º
+lugar por score, e o Art. 18 (vício de produto, central) em 5º — o ruído pontuou
+acima do pertinente. Conclusão: o score RRF ordena por similaridade textual, não
+por pertinência jurídica, e em domínio jurídico essas duas medidas divergem
+justamente nos casos que mais importam.
+
+### 2. Filtro de pertinência por LLM (re-ranking) — decisão e blindagem
+
+<!-- DE ONDE VEIO: consequência do achado 1. Como score não separa, usei LLM pra
+     filtrar. Tive que blindar contra alucinação. -->
+
+Adotado re-ranking por LLM sobre os dispositivos JÁ recuperados (não geração). A
+propriedade anti-alucinação (ADR-013) é preservada porque a saída do LLM é fechada
+a ÍNDICES (quais dos N recuperados entram), nunca texto de lei — é matematicamente
+impossível introduzir dispositivo novo. Viés conservador no prompt ("na dúvida,
+inclua") para minimizar falso negativo. Fallback para os chunks originais se o
+parse falhar — o filtro só melhora, nunca quebra a geração. Evidência de eficácia:
+no relato 1, o filtro CORTOU o vício de serviço (1º por score) e MANTEVE o Art. 18
+(5º por score), invertendo o ranking do score guiado por pertinência jurídica.
+
+### 3. Limitação do filtro: não distingue dispositivo pró-requerente de excludente
+
+<!-- DE ONDE VEIO: ao validar o filtro no relato de produto defeituoso, ele manteve
+     artigos sobre "culpa exclusiva do consumidor" (excludente de responsabilidade
+     do fornecedor). -->
+
+O filtro de pertinência seleciona por aderência TEMÁTICA, mas não faz raciocínio
+adversarial: manteve dispositivos sobre excludente de responsabilidade ("culpa
+exclusiva do consumidor") num caso de defesa do consumidor — artigos que são do
+tema mas jogam CONTRA o requerente. Distinguir "artigo a favor" de "artigo contra"
+exige raciocínio jurídico adversarial, além do escopo de um filtro de similaridade.
+LIMITAÇÃO DECLARADA → reforça o disclaimer de não-substituição de advogado.
+Candidato a trabalho futuro: filtro com consciência adversarial.
+
+### 4. Reconstrução de contexto-pai estendida ao caminho documental
+
+<!-- DE ONDE VEIO: no caso de produto defeituoso, o §6º do Art. 18 subia mas o
+     caput (artigo-pai) não aparecia no fundamento. Descobri que o caminho de
+     documento descartava o campo `ancestrais` que o retrieval já entregava. -->
+
+A reconstrução de contexto hierárquico (caput do artigo-pai via parent_chunk_id,
+ADR-007), inicialmente aplicada apenas ao caminho conversacional, foi estendida à
+geração documental. Antes, o caminho de documento recuperava o §6º (filho) sem o
+caput do Art. 18 (pai), gerando fundamento incompleto. Função montar_fundamento
+anexa o caput quando o dispositivo é filho de artigo, com dedup por (documento,
+numero) e degradação limpa em documentos planos. Alinhou código e texto: o TCC
+afirma reconstruir contexto hierárquico, e agora os DOIS caminhos o fazem.
+
+### 5. valor_causa como inteiro de centavos + forma forense por extenso
+
+<!-- DE ONDE VEIO: o JEC exige valor da causa por extenso (art. 291 CPC). Decisão
+     de tipo + ajuste pedido pelo advogado Gustavo. -->
+
+valor_causa modelado como inteiro de CENTAVOS (não float, não string livre) para
+eliminar erro de ponto flutuante e ambiguidade de parsing — a conversão texto→número
+é responsabilidade da camada de entrada (borda), não do miolo de geração. Extenso
+via num2words (pt_BR). Ajuste forense pedido na validação com o advogado: num2words
+omite "um" na casa dos milhares ("mil e quinhentos"), corrigido para a praxe forense
+("um mil e quinhentos") via word boundary — pega "mil" inicial sem afetar "milhão"
+nem "mil" no meio da string.
+
+### 6. Remoção do LangChain — pipeline hand-rolled (já é ADR-015)
+
+<!-- DE ONDE VEIO: descobri que LangChain estava no pyproject mas não era importado
+     em lugar nenhum. -->
+
+LangChain era dependência declarada mas nunca importada (pipeline todo hand-rolled).
+Removido. Evidência empírica do peso morto: o relock do poetry eliminou ~1.000 linhas
+de dependências transitivas do lockfile. Coerente com a filosofia de engenharia
+adequada ao escopo (mesma lógica de recusar ENUM, view materializada, LTREE).
+
+### 7. CASO-ESTUDO: limitação de recall no trabalhista (caso "Roberto")
+
+<!-- DE ONDE VEIO: tentei usar um caso de rescisão trabalhista + FGTS atrasado como
+     notificação. O Art. 477 (dispositivo CENTRAL) não foi recuperado. Investiguei
+     se era corpus ou recall. -->
+
+Caso de rescisão sem justa causa com verbas não pagas + FGTS atrasado. Diagnóstico:
+o retrieval RECUPEROU cross-documento (puxou da CLT E da Lei 8.036 simultaneamente —
+prova de generalização multi-documento dentro de uma área). PORÉM o Art. 477 da CLT
+(prazo de pagamento §6º e multa por atraso §8º — o EIXO jurídico do caso) NÃO foi
+recuperado no top-8. Query SQL direta CONFIRMOU que o Art. 477, §6º e §8º EXISTEM no
+banco. Logo: é limitação de RECALL, não de corpus. Causa provável: divergência entre
+a linguagem natural do leigo ("não recebi minhas verbas, me enrolam") e a linguagem
+legal do dispositivo. ACHADO FORTE: o dispositivo central existia no corpus mas não
+foi recuperado — é o desafio central de Legal AI demonstrado empiricamente no próprio
+sistema. Solução candidata (Semana 4): query rewriting/expansion — destilar o relato
+em termos legais antes da busca. Este caso vira seção de "análise de recall" nos
+resultados.
+
+### 8. Filtro de pertinência: primeiro falso negativo observado (no trabalhista)
+
+<!-- DE ONDE VEIO: no mesmo diagnóstico do caso Roberto, o filtro foi testado pela
+     1ª vez em caso trabalhista (só tinha sido testado em consumo). -->
+
+No caso trabalhista, o filtro de pertinência CORTOU um dispositivo pertinente sobre
+depósito de FGTS (falso negativo) — primeira vez observado. Confirma o risco previsto
+ao desenhar o filtro (viés conservador minimiza, não elimina, falso negativo). O
+filtro foi calibrado/testado em consumo (CDC); seu comportamento em outras áreas
+(CLT) precisa de validação própria. Candidato a item da avaliação da Semana 4:
+medir precisão/recall do filtro POR ÁREA, não agregado.
+
+### CANDIDATA A EXPERIMENTO — Semana 4 (já registrada antes, reforçada aqui)
+
+<!-- Lembrete pedido explicitamente. -->
+
+Filtro de pertinência binário (atual) vs. pointwise LLM scoring + query rewriting,
+com métrica formal sobre o dataset. O caso "Roberto" (achado 7) é o caso de teste
+natural pro query rewriting. Ressalva anti-alucinação: pontuar por aderência ao
+texto do dispositivo, não por mérito jurídico próprio do modelo.
+
+### CASO-ESTUDO 2: limitação de jurisprudência (caso "Larissa")
+
+<!-- DE ONDE VEIO: persona de negativação indevida por fraude. Fundamentação
+     ótima depende de Súmula 479 STJ (responsabilidade objetiva por fraude de
+     terceiro), que é JURISPRUDÊNCIA, fora do corpus por escopo. -->
+
+Caso de negativação indevida por dívida fraudulenta (CPF usado por terceiro). A
+fundamentação jurídica ótima é a Súmula 479 do STJ — jurisprudência consolidada,
+NÃO lei. O corpus cobre legislação (CDC), não súmulas. Logo o sistema não pode
+fundamentar no dispositivo central do caso, recuperando no máximo Art. 42/43 do
+CDC (cobrança/cadastros — pertinentes mas não a espinha dorsal). Segunda instância
+do Achado 4 da Semana 6 (fidelidade ≠ completude quando a interpretação depende de
+jurisprudência ausente), agora no consumo. Reforça a delimitação de escopo:
+JusBot é ferramenta de primeiro acesso baseada em lei, não substituto de análise
+jurisprudencial.
+
+### Achados para o tcc_notes — sessão de 24–30/06 (Camada 4 + fundamento)
+
+<!-- INSTRUÇÃO DE USO: este é material bruto organizado por tema, para colar no
+     tcc_notes e refinar. Cada bloco tem um COMENTÁRIO de contexto (de onde veio o
+     achado) e o texto em si. Os achados de RECALL e o comportamento do FILTRO são
+     os mais valiosos — são o núcleo do capítulo de avaliação. -->
+
+A. O achado central: recall do dispositivo específico vs. genérico
+
+<!-- DE ONDE VEIO: diagnósticos de retrieval em 3 casos independentes (Roberto/
+     trabalhista, Lucas/PROCON, e parcialmente Amanda). Em cada um, o dispositivo
+     mais ESPECÍFICO que o caso exigia não foi recuperado, enquanto o genérico/
+     parental subiu. Confirmado por query SQL que os dispositivos EXISTEM no banco
+     (não é falta de corpus, é ranking). -->
+
+Tese: o retrieval por similaridade textual (vetorial + lexical, fundido por
+RRF) sistematicamente sub-rankeia o dispositivo legal específico em favor do
+dispositivo genérico ou parental, porque a linguagem natural do relato do leigo
+tem maior similaridade com o enunciado geral (caput) do que com a regra precisa
+(parágrafo/inciso específico).
+
+Evidências (3 casos independentes, trabalhista e consumo):
+
+Caso trabalhista (rescisão + FGTS): o Art. 477 da CLT (§6º prazo de pagamento,
+§8º multa por atraso) — eixo jurídico do caso — NÃO foi recuperado no top-8.
+Query SQL confirmou que o Art. 477, §6º e §8º EXISTEM no banco. Logo, recall,
+não corpus.
+Caso vício de produto (PROCON): o Art. 18 §1º e os incisos I/II
+(substituição/restituição — o pedido central) NÃO subiram; subiram o caput e o
+§3º. Query SQL confirmou que §1º e incisos existem. O caput, que já menciona as
+alternativas genericamente, "absorve" o score do §1º específico.
+Caso cobrança indevida (JEC): inverso favorável — o Art. 42 §único (devolução
+em dobro) subiu, em ÚLTIMO por score (#8), e o contexto-pai puxou o caput.
+
+Por que importa: este é o desafio central de Legal AI (precisão de recuperação
+jurídica) demonstrado empiricamente no próprio sistema, em PT-BR, com causa
+identificada. Solução candidata: query rewriting/expansion (destilar o relato em
+termos legais antes da busca) — experimento da Semana 4.
+
+B. Contexto-pai (caput) resolve o filho, não o irmão
+
+<!-- DE ONDE VEIO: ao comparar por que a Amanda (Art. 42) saiu completa e o Lucas
+     (Art. 18) saiu incompleto, apesar da mesma arquitetura de contexto-pai. -->
+
+A reconstrução de contexto hierárquico (montar_fundamento anexa o caput do
+artigo-pai a parágrafos/incisos recuperados, via parent_chunk_id — ADR-007/014)
+resolve um caso e não resolve outro, e a distinção é estrutural:
+
+Resolve quando o FILHO específico sobe: o mecanismo vai filho → pai. Se o
+§único do Art. 42 é recuperado (caso Amanda), o caput é anexado e a peça fica
+completa.
+NÃO resolve quando falta um IRMÃO: se o §3º do Art. 18 sobe mas o §1º não
+(caso Lucas), o contexto-pai traz o caput, mas não traz o §1º — porque §1º e §3º
+são irmãos, não ancestral/descendente. O mecanismo não vai pai → outros filhos.
+
+Consequência: a completude do fundamento depende de QUAL dispositivo o retrieval
+captura. Mesma arquitetura, resultados diferentes. (Reforça o achado A: o problema
+de fundo é o recall do dispositivo certo, não a reconstrução de contexto.)
+
+C. Score de similaridade ≠ pertinência jurídica (justificativa do filtro LLM)
+
+<!-- DE ONDE VEIO: diagnóstico de score em 3 relatos, testando corte por score
+     antes de recorrer a LLM. -->
+
+Corte por score RRF foi testado como filtro de fundamento e REJEITADO empiricamente:
+
+A posição do "salto" de score variou entre casos (2ª-3ª; 3ª-4ª; 1ª-2ª) —
+inviabiliza limiar fixo.
+Em caso de vício de produto, o dispositivo de vício de SERVIÇO (irrelevante)
+apareceu em 1º por score e o Art. 18 (central) em 5º — o ruído pontuou acima do
+pertinente.
+Conclusão: o score ordena por similaridade textual, não por pertinência jurídica;
+em domínio jurídico essas medidas divergem nos casos que mais importam. Por isso
+o filtro precisa de LLM (entende sentido), não de score.
+
+D. Filtro de pertinência por LLM — desempenho e blindagem
+
+<!-- DE ONDE VEIO: o filtrar_pertinencia foi testado em 4 casos (Helena, Lucas,
+     Amanda em consumo; Roberto em trabalho). -->
+
+Mecanismo: re-ranking por LLM sobre dispositivos JÁ recuperados (não geração).
+Saída fechada a ÍNDICES (quais dos N entram), nunca texto de lei — preserva
+anti-alucinação (ADR-013), é impossível introduzir dispositivo novo. Viés
+conservador ("na dúvida, inclua"). Fallback para os chunks originais se o parse
+falhar — só melhora, nunca quebra.
+
+Desempenho observado:
+
+Consumo (3 casos): acertou consistentemente. No caso vício de produto cortou o
+vício de serviço (que estava em 1º por score). No caso cobrança indevida MANTEVE
+o Art. 42 §único que estava em ÚLTIMO por score, cortando 5 dispositivos de score
+maior — prova de que lê pertinência, não score.
+Trabalhista (1 caso): primeiro FALSO NEGATIVO observado — cortou um dispositivo
+pertinente sobre depósito de FGTS. O filtro foi calibrado/testado em consumo
+(CDC); comportamento em outras áreas (CLT) precisa de validação própria.
+
+Limitação declarada: o filtro seleciona por aderência TEMÁTICA, não faz
+raciocínio adversarial — manteve dispositivos sobre "culpa exclusiva do consumidor"
+(excludente de responsabilidade, que joga CONTRA o requerente) num caso de defesa
+do consumidor. Distinguir "artigo a favor" de "artigo contra" é raciocínio jurídico
+além do escopo. Reforça o disclaimer de não-substituição de advogado.
+
+Item para a Semana 4: medir precisão/recall do filtro POR ÁREA (consumo vs.
+trabalho), não agregado, dado o falso negativo no trabalhista.
+
+E. Dois casos-estudo de limitação (não viram peça-vitrine, viram análise)
+
+<!-- DE ONDE VEIO: tentativas de usar casos juridicamente ricos como peça, que
+     esbarraram em limites de escopo do corpus. -->
+
+Caso recall (trabalhista): dispositivo central (Art. 477) existe no corpus
+mas não é recuperado. Ver achado A.
+Caso jurisprudência (negativação por fraude): a fundamentação ótima depende
+da Súmula 479 do STJ — jurisprudência, não lei. O corpus cobre legislação, não
+súmulas (decisão de escopo). O sistema recupera no máximo Art. 42/43 (pertinentes
+mas não a espinha dorsal). Segunda instância do "fidelidade ≠ completude quando a
+interpretação depende de fonte ausente do corpus". Delimita o escopo: JusBot é
+ferramenta de primeiro acesso baseada em LEI, não análise jurisprudencial.
+
+F. Decisões de implementação da Camada 4 (para metodologia)
+
+<!-- DE ONDE VEIO: construção dos 3 documentos. -->
+
+Pipeline único parametrizado por tipo: os 3 documentos (notificação, PROCON,
+JEC) compartilham base.py (RAG → filtro → fatos LLM → validação → render).
+Evidência da generalização: schemas convergem no mesmo formato de qualificação
+agrupada nos dois lados (requerente/requerido), nos 3 documentos.
+Separação determinístico/generativo por risco: LLM redige só os FATOS
+(narrativa); fundamento vem do RAG; pedidos vêm do usuário; dados duros (CPF,
+valor, data, protocolo, valor da causa) nunca passam pelo LLM. Validado: em todas
+as peças, o LLM não fabricou valores/protocolos na narrativa.
+valor_causa como inteiro de centavos: evita erro de ponto flutuante; conversão
+texto→número é responsabilidade da camada de entrada (borda), não do miolo.
+Extenso via num2words (pt_BR) com ajuste forense ("um mil" via word boundary) —
+pedido na validação com o advogado. Testado em 18 casos + caso real (R$ 4.924,70
+→ "quatro mil, novecentos e vinte e quatro reais e setenta centavos").
+LangChain removido (ADR-015): dependência declarada nunca importada; relock
+eliminou ~1.000 linhas de transitivas. Pipeline hand-rolled — controle explícito
+do prompt é requisito da anti-alucinação.
+
+G. Lição de método (vale registrar na discussão)
+
+<!-- DE ONDE VEIO: episódios da sessão. -->
+
+"O Code/ferramenta reportou um problema" ≠ "existe um problema": em um caso, o
+agente reportou caput duplicado que não existia (leitura errada do próprio
+output); diagnóstico com os valores reais mostrou que o dedup funcionava.
+A forma FINAL do artefato revela defeitos que a saída de debug esconde: a
+exportação para PDF expôs uma cascata de marcadores no documento que os testes
+de terminal não tinham evidenciado.
+Validação por inspeção do dado real, não por confiança no resumo, foi o que
+evitou consertos errados ao longo da Camada 4.

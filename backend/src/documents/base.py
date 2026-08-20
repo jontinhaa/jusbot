@@ -224,6 +224,74 @@ def filtrar_pertinencia(relato: str, chunks: list[ContextualChunk]) -> list[Cont
         return chunks
 
 
+# ─── Reescrita de query (experimento) ────────────────────────────────────────
+
+
+def reescrever_query(relato: str, llm: Any) -> str:
+    """Reescreve o relato em terminologia jurídica para melhorar o retrieval.
+
+    Traduz vocabulário leigo → jurídico SEM adicionar temas/teses ausentes no
+    relato (conservador por design — preserva a garantia anti-alucinação).
+    Retorna lista CSV de termos/expressões jurídicas, não texto corrido.
+
+    Parâmetro llm: instância anthropic.Anthropic (passada por quem chama,
+    não criada internamente — evita client extra por chamada no experimento).
+    """
+    system = (
+        "Você é um redator jurídico. "
+        "Reescreva o relato abaixo como um parágrafo curto (2 a 4 frases) em linguagem "
+        "jurídica formal, preservando os MESMOS fatos — apenas trocando o vocabulário "
+        "coloquial pelo técnico equivalente.\n\n"
+        "REGRAS:\n"
+        "1. Mantenha a estrutura de relato (o que aconteceu): quem fez o quê, quando, com qual resultado.\n"
+        "2. NÃO liste termos soltos — escreva uma narrativa coesa.\n"
+        "3. NÃO adicione teses, consequências jurídicas, dispositivos legais ou remédios "
+        "não mencionados pela pessoa (ex: se ela não falou em 'dano moral', não escreva; "
+        "se ela não pediu 'substituição por outro da mesma espécie', não inclua).\n"
+        "4. Traduza apenas o que a pessoa disse, na terminologia correta.\n"
+        "5. SEM cabeçalho, SEM markdown. Apenas o parágrafo."
+    )
+    response = llm.messages.create(
+        model=_MODEL,
+        max_tokens=300,
+        system=system,
+        messages=[{"role": "user", "content": f"Relato:\n{relato}"}],
+    )
+    return response.content[0].text.strip()
+
+
+def reescrever_query_focado(relato: str, llm: Any) -> str:
+    """Variante focada: extrai 2-3 conceitos centrais do relato para query curta.
+
+    Hipótese: lista larga de termos dilui o embedding; query curta e central
+    concentra o sinal no que importa.
+    """
+    system = (
+        "Você é um especialista em terminologia jurídica. "
+        "Identifique os 2 a 3 conceitos jurídicos MAIS CENTRAIS do relato — "
+        "o núcleo do problema, não os detalhes periféricos.\n\n"
+        "REGRAS ABSOLUTAS:\n"
+        "1. Produza NO MÁXIMO 3 termos ou expressões curtas.\n"
+        "2. Escolha o conceito central do problema, não liste consequências nem temas secundários.\n"
+        "3. Cada termo deve corresponder a algo que a pessoa DE FATO disse no relato "
+        "(mesma regra conservadora: não infira o que ela não mencionou).\n"
+        "4. Descreva o FATO narrado em vocabulário técnico — NUNCA o efeito jurídico que "
+        "decorreria dele. Exemplo: 'cobraram e ficaram com meu dinheiro' → "
+        "'cobrança indevida, valor pago e não restituído' (fato). "
+        "PROIBIDO: 'enriquecimento ilícito', 'dano material', 'responsabilidade civil' "
+        "— esses são efeitos, não fatos narrados.\n"
+        "5. Saída crua: apenas os termos separados por vírgula. "
+        "SEM cabeçalho, SEM markdown, SEM explicação."
+    )
+    response = llm.messages.create(
+        model=_MODEL,
+        max_tokens=60,
+        system=system,
+        messages=[{"role": "user", "content": f"Relato:\n{relato}"}],
+    )
+    return response.content[0].text.strip()
+
+
 # ─── Geração de fatos via LLM ─────────────────────────────────────────────────
 
 
